@@ -4,7 +4,7 @@ import '../screens/splash_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/forgot_password_screen.dart';
-import '../screens/home_screen.dart';
+import '../screens/dashboard_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -35,7 +35,7 @@ class AppRoutes {
         );
       case home:
         return MaterialPageRoute(
-          builder: (_) => const HomeScreen(),
+          builder: (_) => const DashboardScreen(),
         );
       default:
         return MaterialPageRoute(
