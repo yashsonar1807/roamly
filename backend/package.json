@@ -1,7 +1,7 @@
 {
-  "name": "romaly-backend",
+  "name": "roamly-backend",
   "version": "1.0.0",
-  "description": "Production-ready Node.js backend for Romaly using Express and MongoDB",
+  "description": "Production-ready Node.js backend for Roamly using Express and MongoDB",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -12,7 +12,7 @@
     "express",
     "mongodb",
     "mongoose",
-    "romaly",
+    "roamly",
     "clean-architecture"
   ],
   "author": "",

@@ -1,5 +1,5 @@
-name: romaly
-description: "Romaly - A production-ready Flutter app with Clean Architecture."
+name: roamly
+description: "Roamly - A production-ready Flutter app with Clean Architecture."
 publish_to: 'none'
 version: 1.0.0+1
 

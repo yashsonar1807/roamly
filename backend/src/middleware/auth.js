@@ -20,7 +20,7 @@ const protect = async (req, res, next) => {
     // Verify the token
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || 'super_secret_romaly_token_key_123456'
+      process.env.JWT_SECRET || 'super_secret_roamly_token_key_123456'
     );
 
     // Fetch the user from database and attach to request object

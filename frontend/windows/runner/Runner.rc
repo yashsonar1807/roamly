@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "romaly" "\0"
+            VALUE "FileDescription", "roamly" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "romaly" "\0"
+            VALUE "InternalName", "roamly" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "romaly.exe" "\0"
-            VALUE "ProductName", "romaly" "\0"
+            VALUE "OriginalFilename", "roamly.exe" "\0"
+            VALUE "ProductName", "roamly" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

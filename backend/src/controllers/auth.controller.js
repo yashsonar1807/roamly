@@ -257,7 +257,7 @@ const refreshAccessToken = async (req, res, next) => {
     // Verify refresh token
     const decoded = jwt.verify(
       refreshToken,
-      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'super_secret_romaly_token_key_123456'
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'super_secret_roamly_token_key_123456'
     );
 
     // Verify user still exists

@@ -5,6 +5,8 @@ const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth.routes');
 const destinationRoutes = require('./routes/destination.routes');
 const tripRoutes = require('./routes/trip.routes');
+const storyRoutes = require('./routes/story.routes');
+const postRoutes = require('./routes/post.routes');
 
 // Load environment variables
 dotenv.config();
@@ -24,12 +26,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/destinations', destinationRoutes);
 app.use('/api/v1/trips', tripRoutes);
+app.use('/api/v1/stories', storyRoutes);
+app.use('/api/v1/posts', postRoutes);
 
 // Default / Health Check Route
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'success',
-    message: 'Welcome to Romaly API Server',
+    message: 'Welcome to Roamly API Server',
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
   });
@@ -56,7 +60,7 @@ app.use((err, req, res, next) => {
 // Server Initialization
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
-  console.log(`[Server] Romaly server is running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log(`[Server] Roamly server is running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
 
 // Handle unhandled promise rejections

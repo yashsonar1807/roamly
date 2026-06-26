@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 // Load environment variables (failsafe if not loaded in server.js)
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/romaly_db';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/roamly_db';
 
 const connectDB = async () => {
   const options = {
@@ -17,9 +17,9 @@ const connectDB = async () => {
     console.log('[MongoDB] Attempting connection...');
     await mongoose.connect(MONGO_URI, options);
     
-    // Auto-seed default destinations
-    const seedDestinations = require('./seedDestinations');
-    await seedDestinations();
+    // Auto-seed default database entities (Destinations, Stories, Posts)
+    const seedDatabase = require('./seedDatabase');
+    await seedDatabase();
   } catch (err) {
     console.error(`[MongoDB] Initial connection error: ${err.message}`);
     // Trigger initial retry logic
