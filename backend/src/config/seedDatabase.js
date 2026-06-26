@@ -6,8 +6,10 @@ const seedDatabase = async () => {
   try {
     // 1. Seed Destinations
     const destCount = await Destination.countDocuments();
-    if (destCount === 0) {
-      console.log('[Seed] Seeding Indian destinations...');
+    if (destCount < 15) {
+      console.log('[Seed] Destinations count is less than 15. Re-seeding complete list...');
+      await Destination.deleteMany({}); // Clear existing
+      
       const indianDestinations = [
         {
           name: 'Taj Mahal',
@@ -69,9 +71,129 @@ const seedDatabase = async () => {
           category: 'Heritage',
           iconName: 'temple_hindu_rounded',
         },
+        {
+          name: 'Hawa Mahal',
+          city: 'Jaipur',
+          country: 'India',
+          description: 'A stunning five-story palace built of red and pink sandstone, famous for its high screen wall windows.',
+          images: ['https://images.unsplash.com/photo-1477584305850-3a7ac0197a19?q=80&w=600'],
+          latitude: 26.9239,
+          longitude: 75.8267,
+          rating: 4.6,
+          category: 'Heritage',
+          iconName: 'account_balance_rounded',
+        },
+        {
+          name: 'Jim Corbett National Park',
+          city: 'Ramnagar',
+          country: 'India',
+          description: 'India\'s oldest national park, famous for its abundant wildlife including the majestic Bengal Tiger.',
+          images: ['https://images.unsplash.com/photo-1615959189197-484c0fc456a1?q=80&w=600'],
+          latitude: 29.5300,
+          longitude: 78.7747,
+          rating: 4.5,
+          category: 'Forests',
+          iconName: 'forest_rounded',
+        },
+        {
+          name: 'Shimla Ridge',
+          city: 'Shimla',
+          country: 'India',
+          description: 'A large open space located in the center of Shimla, offering panoramic views of the snowy Himalayan peaks.',
+          images: ['https://images.unsplash.com/photo-1597075687490-8f673c6c17f6?q=80&w=600'],
+          latitude: 31.1048,
+          longitude: 77.1734,
+          rating: 4.6,
+          category: 'Mountains',
+          iconName: 'landscape_rounded',
+        },
+        {
+          name: 'Radhanagar Beach',
+          city: 'Havelock Island',
+          country: 'India',
+          description: 'Consistently rated as one of Asia\'s best beaches, featuring turquoise water and pristine white sand shores.',
+          images: ['https://images.unsplash.com/photo-1589308078059-be1415eab4c3?q=80&w=600'],
+          latitude: 12.0305,
+          longitude: 92.9576,
+          rating: 4.9,
+          category: 'Beaches',
+          iconName: 'beach_access_rounded',
+        },
+        {
+          name: 'Rishikesh Rafting',
+          city: 'Rishikesh',
+          country: 'India',
+          description: 'Experience white-water rafting on the Ganga River, surrounded by the beautiful foothills of the Himalayas.',
+          images: ['https://images.unsplash.com/photo-1530521951415-3dbd6855567a?q=80&w=600'],
+          latitude: 30.0869,
+          longitude: 78.2676,
+          rating: 4.8,
+          category: 'Adventure',
+          iconName: 'explore_rounded',
+        },
+        {
+          name: 'Leh Ladakh Desert',
+          city: 'Leh',
+          country: 'India',
+          description: 'A high-altitude desert destination featuring breathtaking lake views, deep valleys, and ancient monasteries.',
+          images: ['https://images.unsplash.com/photo-1599661046289-e31897846e41?q=80&w=600'],
+          latitude: 34.1526,
+          longitude: 77.5771,
+          rating: 4.9,
+          category: 'Adventure',
+          iconName: 'explore_rounded',
+        },
+        {
+          name: 'Alleppey Houseboats',
+          city: 'Alleppey',
+          country: 'India',
+          description: 'Glide along tranquil backwaters, palm-fringed canals, and lagoons in traditional Kerala houseboats.',
+          images: ['https://images.unsplash.com/photo-1593693411515-c202e974fe08?q=80&w=600'],
+          latitude: 9.4981,
+          longitude: 76.3388,
+          rating: 4.7,
+          category: 'Beaches',
+          iconName: 'beach_access_rounded',
+        },
+        {
+          name: 'Gulmarg Gondola',
+          city: 'Gulmarg',
+          country: 'India',
+          description: 'One of the highest cable cars in the world, taking you to snow-capped peak viewpoints for skiing and photography.',
+          images: ['https://images.unsplash.com/photo-1588668214407-6eb9527032d6?q=80&w=600'],
+          latitude: 34.0484,
+          longitude: 74.3805,
+          rating: 4.8,
+          category: 'Mountains',
+          iconName: 'landscape_rounded',
+        },
+        {
+          name: 'Ajanta Caves',
+          city: 'Aurangabad',
+          country: 'India',
+          description: 'Ancient rock-cut Buddhist caves featuring beautiful frescoes, sculptures, and architectural wonders.',
+          images: ['https://images.unsplash.com/photo-1600100397608-f010e42ed7b4?q=80&w=600'],
+          latitude: 20.5519,
+          longitude: 75.7031,
+          rating: 4.6,
+          category: 'Heritage',
+          iconName: 'account_balance_rounded',
+        },
+        {
+          name: 'Ooty Botanical Gardens',
+          city: 'Ooty',
+          country: 'India',
+          description: 'Lush gardens showcasing thousands of species of flora, neat lawns, and ancient fossil tree trunks.',
+          images: ['https://images.unsplash.com/photo-1588096344356-9b9d31bf9a89?q=80&w=600'],
+          latitude: 11.4102,
+          longitude: 76.7084,
+          rating: 4.5,
+          category: 'Forests',
+          iconName: 'forest_rounded',
+        },
       ];
       await Destination.insertMany(indianDestinations);
-      console.log('[Seed] Destinations seeded successfully.');
+      console.log('[Seed] 15 destinations seeded successfully.');
     }
 
     // 2. Seed Stories

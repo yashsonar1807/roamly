@@ -190,7 +190,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
 
-// ─── TAB VIEW: EXPLORE (DATABASE DRIVEN) ──────────────────────────
+// ─── TAB VIEW: EXPLORE (ADVANCED DRIVEN) ──────────────────────────
 class _ExploreView extends StatefulWidget {
   const _ExploreView();
 
@@ -199,30 +199,57 @@ class _ExploreView extends StatefulWidget {
 }
 
 class _ExploreViewState extends State<_ExploreView> {
+  final TextEditingController _searchController = TextEditingController();
+
+  final List<Map<String, String>> _categories = [
+    {'name': 'All', 'icon': '🌍'},
+    {'name': 'Mountains', 'icon': '⛰️'},
+    {'name': 'Beaches', 'icon': '🏖️'},
+    {'name': 'Heritage', 'icon': '🏛️'},
+    {'name': 'Forests', 'icon': '🌲'},
+    {'name': 'Adventure', 'icon': '⛺'},
+  ];
+
+  final List<double?> _ratingFilters = [null, 4.6, 4.8, 4.9];
+
   @override
   void initState() {
     super.initState();
-    // Fetch destinations on view load
+    // Fetch destinations with pagination/filters on view load
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<DestinationProvider>(context, listen: false).fetchDestinations();
+      final provider = Provider.of<DestinationProvider>(context, listen: false);
+      provider.resetFilters();
+      _searchController.clear();
+      provider.fetchDestinations(usePaginationFilters: true);
     });
   }
 
-  IconData _getIconData(String iconName) {
-    switch (iconName) {
-      case 'account_balance_rounded':
-        return Icons.account_balance_rounded;
-      case 'landscape_rounded':
-        return Icons.landscape_rounded;
-      case 'beach_access_rounded':
-        return Icons.beach_access_rounded;
-      case 'forest_rounded':
-        return Icons.forest_rounded;
-      case 'temple_hindu_rounded':
-        return Icons.temple_hindu_rounded;
-      default:
-        return Icons.explore_rounded;
-    }
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _triggerSearch(String val) {
+    final provider = Provider.of<DestinationProvider>(context, listen: false);
+    provider.setSearchQuery(val);
+    provider.fetchDestinations(usePaginationFilters: true);
+  }
+
+  void _changeCategory(String categoryName) {
+    final provider = Provider.of<DestinationProvider>(context, listen: false);
+    provider.setSelectedCategory(categoryName);
+    provider.fetchDestinations(usePaginationFilters: true);
+  }
+
+  void _changeMinRating(double? rating) {
+    final provider = Provider.of<DestinationProvider>(context, listen: false);
+    provider.setMinRating(rating);
+    provider.fetchDestinations(usePaginationFilters: true);
+  }
+
+  void _loadData() {
+    Provider.of<DestinationProvider>(context, listen: false).fetchDestinations(usePaginationFilters: true);
   }
 
   @override
@@ -230,47 +257,321 @@ class _ExploreViewState extends State<_ExploreView> {
     final theme = Theme.of(context);
     final provider = Provider.of<DestinationProvider>(context);
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SearchBar(
-            leading: const Icon(Icons.search_rounded),
-            hintText: 'Search destinations, parks, cities...',
-            elevation: WidgetStateProperty.all(0),
-            shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            backgroundColor: WidgetStateProperty.all(theme.colorScheme.surfaceContainerHighest),
-          ),
-          const SizedBox(height: 24),
-          Text('Popular Destinations (India)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          
-          Expanded(
-            child: provider.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : provider.errorMessage != null
-                    ? Center(child: Text(provider.errorMessage!, style: TextStyle(color: theme.colorScheme.error)))
-                    : provider.destinations.isEmpty
-                        ? const Center(child: Text('No destinations found in database.'))
-                        : ListView.builder(
-                            itemCount: provider.destinations.length,
-                            itemBuilder: (context, index) {
-                              final dest = provider.destinations[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                                  child: Icon(_getIconData(dest['iconName'] ?? ''), color: theme.colorScheme.primary),
-                                ),
-                                title: Text(dest['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
-                                subtitle: Text(dest['description'] ?? 'Tap to explore travel guides'),
-                                trailing: const Icon(Icons.chevron_right_rounded),
-                                onTap: () {},
-                              );
+    // Responsive grid cross-axis count calculation
+    final width = MediaQuery.of(context).size.width;
+    int crossAxisCount = 1;
+    double childAspectRatio = 0.85;
+
+    if (width > 1200) {
+      crossAxisCount = 4;
+      childAspectRatio = 0.8;
+    } else if (width > 800) {
+      crossAxisCount = 3;
+      childAspectRatio = 0.8;
+    } else if (width > 550) {
+      crossAxisCount = 2;
+      childAspectRatio = 0.85;
+    }
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 1. SEARCH INPUT BAR WITH SUBMIT BUTTON
+              Row(
+                children: [
+                  Expanded(
+                    child: SearchBar(
+                      controller: _searchController,
+                      leading: const Icon(Icons.search_rounded),
+                      hintText: 'Search by destination, name, city...',
+                      elevation: WidgetStateProperty.all(0),
+                      backgroundColor: WidgetStateProperty.all(theme.colorScheme.surfaceContainerHighest),
+                      shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      onSubmitted: _triggerSearch,
+                      trailing: [
+                        if (_searchController.text.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () {
+                              _searchController.clear();
+                              _triggerSearch('');
                             },
                           ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                    ),
+                    onPressed: () => _triggerSearch(_searchController.text),
+                    child: const Icon(Icons.search_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 2. CATEGORIES SELECTOR
+              SizedBox(
+                height: 44,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final cat = _categories[index];
+                    final isSelected = provider.selectedCategory == cat['name'];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: ChoiceChip(
+                        label: Text('${cat['icon']}  ${cat['name']}'),
+                        selected: isSelected,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        onSelected: (selected) {
+                          if (selected) {
+                            _changeCategory(cat['name']!);
+                          }
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 3. MINIMUM RATINGS CHIP ROW
+              Row(
+                children: [
+                  Text(
+                    'Min Rating:',
+                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SizedBox(
+                      height: 38,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _ratingFilters.length,
+                        itemBuilder: (context, index) {
+                          final ratingVal = _ratingFilters[index];
+                          final isSelected = provider.minRating == ratingVal;
+                          final label = ratingVal == null ? 'All' : '⭐ $ratingVal+';
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: ChoiceChip(
+                              label: Text(label, style: const TextStyle(fontSize: 11)),
+                              selected: isSelected,
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              onSelected: (selected) {
+                                if (selected) {
+                                  _changeMinRating(ratingVal);
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 4. GRID OF DESTINATIONS
+              Expanded(
+                child: provider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : provider.errorMessage != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.error_outline_rounded, color: theme.colorScheme.error, size: 48),
+                                const SizedBox(height: 16),
+                                Text(provider.errorMessage!, style: TextStyle(color: theme.colorScheme.error)),
+                                const SizedBox(height: 12),
+                                ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
+                              ],
+                            ),
+                          )
+                        : provider.destinations.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.search_off_rounded, size: 56, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                                    const SizedBox(height: 16),
+                                    const Text('No destinations match your search filters.', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 8),
+                                    TextButton(
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        provider.resetFilters();
+                                        provider.fetchDestinations(usePaginationFilters: true);
+                                      },
+                                      child: const Text('Reset All Filters'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : GridView.builder(
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                  childAspectRatio: childAspectRatio,
+                                ),
+                                itemCount: provider.destinations.length,
+                                itemBuilder: (context, index) {
+                                  final dest = provider.destinations[index];
+                                  final imageUrl = (dest['images'] != null && (dest['images'] as List).isNotEmpty)
+                                      ? dest['images'][0].toString()
+                                      : 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600';
+
+                                  return Card(
+                                    clipBehavior: Clip.antiAlias,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    elevation: 2,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        // Image section with floating badges
+                                        Expanded(
+                                          child: Stack(
+                                            fit: StackFit.expand,
+                                            children: [
+                                              Image.network(imageUrl, fit: BoxFit.cover),
+                                              // Rating Badge
+                                              Positioned(
+                                                top: 10,
+                                                left: 10,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.7),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        (dest['rating'] ?? '4.8').toString(),
+                                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                              // Category Badge
+                                              Positioned(
+                                                top: 10,
+                                                right: 10,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: theme.colorScheme.primary.withValues(alpha: 0.9),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    (dest['category'] ?? 'TRAVEL').toString().toUpperCase(),
+                                                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Card content details
+                                        Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                dest['name'] ?? '',
+                                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.location_on_rounded, color: theme.colorScheme.primary, size: 12),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                    child: Text(
+                                                      '${dest['city'] ?? ''}, ${dest['country'] ?? ''}',
+                                                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                dest['description'] ?? '',
+                                                style: theme.textTheme.bodySmall?.copyWith(height: 1.3),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+              ),
+
+              // 5. PAGINATION SELECTOR FOOTER (Shown only if totalPages > 1)
+              if (provider.totalPages > 1) ...[
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      onPressed: provider.currentPage > 1
+                          ? () => provider.setPage(provider.currentPage - 1)
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Page ${provider.currentPage} of ${provider.totalPages}',
+                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      onPressed: provider.currentPage < provider.totalPages
+                          ? () => provider.setPage(provider.currentPage + 1)
+                          : null,
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -6,19 +6,27 @@ const Destination = require('../models/Destination');
  * @access  Public
  */
 const getDestinations = async (req, res, next) => {
-  const { category, city, search } = req.query;
+  const { category, city, search, minRating } = req.query;
 
   try {
     const query = {};
 
     // Filter by Category
-    if (category) {
+    if (category && category !== 'All') {
       query.category = category;
     }
 
     // Filter by City
     if (city) {
       query.city = { $regex: city, $options: 'i' };
+    }
+
+    // Filter by Minimum Rating
+    if (minRating) {
+      const parsedRating = parseFloat(minRating);
+      if (!isNaN(parsedRating)) {
+        query.rating = { $gte: parsedRating };
+      }
     }
 
     // Search by Name or Description
@@ -29,11 +37,26 @@ const getDestinations = async (req, res, next) => {
       ];
     }
 
-    const destinations = await Destination.find(query).sort({ name: 1 });
+    // Pagination Setup
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 6;
+    const skip = (page - 1) * limit;
+
+    const total = await Destination.countDocuments(query);
+    const destinations = await Destination.find(query)
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit);
 
     res.status(200).json({
       status: 'success',
       results: destinations.length,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit) || 1,
+      },
       data: {
         destinations,
       },

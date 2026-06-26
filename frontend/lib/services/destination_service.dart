@@ -21,15 +21,41 @@ class DestinationService {
     );
   }
 
-  /// Get all Indian destinations from DB
-  Future<List<dynamic>> fetchDestinations() async {
+  /// Get destinations from DB with filtering and pagination
+  Future<Map<String, dynamic>> fetchDestinations({
+    String? search,
+    String? category,
+    double? minRating,
+    int page = 1,
+    int limit = 6,
+  }) async {
     try {
-      final response = await _dio.get('/');
+      final Map<String, dynamic> queryParameters = {
+        'page': page,
+        'limit': limit,
+      };
+      if (search != null && search.trim().isNotEmpty) {
+        queryParameters['search'] = search.trim();
+      }
+      if (category != null && category != 'All') {
+        queryParameters['category'] = category;
+      }
+      if (minRating != null) {
+        queryParameters['minRating'] = minRating;
+      }
+
+      final response = await _dio.get('/', queryParameters: queryParameters);
       final data = response.data;
       if (data != null && data['status'] == 'success') {
-        return data['data']['destinations'] as List<dynamic>;
+        return {
+          'destinations': data['data']['destinations'] as List<dynamic>,
+          'pagination': data['pagination'] as Map<String, dynamic>,
+        };
       }
-      return [];
+      return {
+        'destinations': [],
+        'pagination': {'total': 0, 'page': 1, 'pages': 1, 'limit': 6},
+      };
     } on DioException catch (e) {
       throw _handleError(e);
     }
