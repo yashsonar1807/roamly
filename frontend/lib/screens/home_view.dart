@@ -71,7 +71,7 @@ class _HomeViewState extends State<HomeView> {
       'avatar': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200',
       'title': 'Watching sunrise in Varanasi 🌅',
       'description': 'Witnessed the spiritual Ganga Aarti at sunrise. There is an inexplicable tranquility in the air of Varanasi that everyone must experience at least once.',
-      'image': 'https://images.unsplash.com/photo-1561361062-65223e441c71?q=80&w=600',
+      'image': 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?q=80&w=600',
       'likes': '1.2k',
       'comments': '45',
     },
