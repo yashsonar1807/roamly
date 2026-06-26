@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../widgets/custom_text_field.dart';
@@ -70,24 +71,29 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
     );
   }
 
-  void _openGoogleMapsRedirect() {
+  Future<void> _openGoogleMapsRedirect() async {
     final lat = widget.destination['latitude'] ?? 0.0;
     final lng = widget.destination['longitude'] ?? 0.0;
-    final mapUrl = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+    final Uri mapUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
     
-    // Copy URL to clipboard and show feedback. In a production device we would use url_launcher,
-    // but clipboard mapping provides a zero-dependency fallback for immediate execution in web/simulators.
-    Clipboard.setData(ClipboardData(text: mapUrl));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Map coordinates URL copied to clipboard! Opening map tab...'),
-        action: SnackBarAction(
-          label: 'Launch Link',
-          textColor: Colors.amber,
-          onPressed: () {}, // Handled by user
-        ),
-      ),
-    );
+    try {
+      if (await canLaunchUrl(mapUri)) {
+        await launchUrl(mapUri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch $mapUri';
+      }
+    } catch (e) {
+      // Copy URL to clipboard and show feedback if launch fails
+      Clipboard.setData(ClipboardData(text: mapUri.toString()));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Opening map failed. Coordinates copied to clipboard: $lat, $lng'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showBookingBottomSheet(BuildContext context) {
@@ -435,59 +441,62 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Card(
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Container(
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.2),
-                  ),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Stylized Map Drawing Grid
-                      CustomPaint(
-                        painter: MapPainter(color: theme.colorScheme.primary.withValues(alpha: 0.15)),
-                      ),
-                      // Target Map Marker with Ripple Rings
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.red),
-                              child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 24),
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.7),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Lat: ${dest['latitude'] ?? 0.0}, Lng: ${dest['longitude'] ?? 0.0}',
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
+              GestureDetector(
+                onTap: _openGoogleMapsRedirect,
+                child: Card(
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.2),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Stylized Map Drawing Grid
+                        CustomPaint(
+                          painter: MapPainter(color: theme.colorScheme.primary.withValues(alpha: 0.15)),
                         ),
-                      ),
-                      // Open In Google Maps Button
-                      Positioned(
-                        bottom: 12,
-                        right: 12,
-                        child: FloatingActionButton.extended(
-                          heroTag: 'maps_btn',
-                          onPressed: _openGoogleMapsRedirect,
-                          icon: const Icon(Icons.map_rounded, size: 18),
-                          label: const Text('Open Maps', style: TextStyle(fontSize: 12)),
-                          elevation: 2,
+                        // Target Map Marker with Ripple Rings
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.red),
+                                child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 24),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.7),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Lat: ${dest['latitude'] ?? 0.0}, Lng: ${dest['longitude'] ?? 0.0}',
+                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        // Open In Google Maps Button
+                        Positioned(
+                          bottom: 12,
+                          right: 12,
+                          child: FloatingActionButton.extended(
+                            heroTag: 'maps_btn',
+                            onPressed: _openGoogleMapsRedirect,
+                            icon: const Icon(Icons.map_rounded, size: 18),
+                            label: const Text('Open Maps', style: TextStyle(fontSize: 12)),
+                            elevation: 2,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
