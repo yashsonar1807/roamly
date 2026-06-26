@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/database');
+const authRoutes = require('./routes/auth.routes');
 
 // Load environment variables
 dotenv.config();
@@ -16,6 +17,9 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Auth Routes Mount
+app.use('/api/v1/auth', authRoutes);
 
 // Default / Health Check Route
 app.get('/', (req, res) => {
