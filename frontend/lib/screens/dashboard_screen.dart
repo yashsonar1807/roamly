@@ -295,8 +295,20 @@ class _ExploreView extends StatelessWidget {
             child: ListView.builder(
               itemCount: 5,
               itemBuilder: (context, index) {
-                final cities = ['Paris, France', 'Tokyo, Japan', 'New York, USA', 'Rome, Italy', 'Sydney, Australia'];
-                final icons = [Icons.domain, Icons.temple_hindu, Icons.location_city, Icons.museum, Icons.sailing];
+                final cities = [
+                  'Taj Mahal, Agra',
+                  'Manali, Himachal Pradesh',
+                  'Goa Beaches, Goa',
+                  'Munnar, Kerala',
+                  'Varanasi, Uttar Pradesh'
+                ];
+                final icons = [
+                  Icons.account_balance_rounded,
+                  Icons.landscape_rounded,
+                  Icons.beach_access_rounded,
+                  Icons.forest_rounded,
+                  Icons.temple_hindu_rounded
+                ];
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
