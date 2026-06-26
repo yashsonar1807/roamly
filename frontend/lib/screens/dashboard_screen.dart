@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/destination_provider.dart';
+import '../providers/trip_provider.dart';
 import '../utils/responsive.dart';
+import '../widgets/custom_text_field.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -21,16 +24,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'Profile',
   ];
 
+  void _switchToTripsTab() {
+    setState(() {
+      _selectedIndex = 3; // Index of Trips tab
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDesktop = context.isDesktop;
 
-    // The views for each tab
+    // View list passing appropriate callbacks
     final List<Widget> views = [
       const _HomeView(),
       const _ExploreView(),
-      const _CreateView(),
+      _CreateView(onTripCreated: _switchToTripsTab),
       const _TripsView(),
       const _ProfileView(),
     ];
@@ -39,7 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
         elevation: 0,
-        actions: _selectedIndex == 4 // Only show logout action in Profile tab
+        actions: _selectedIndex == 4
             ? [
                 IconButton(
                   icon: const Icon(Icons.logout_rounded),
@@ -54,10 +63,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ]
             : null,
       ),
-      // Use Row for desktop navigation rail layout, Standard scaffold body for mobile/tablet
       body: Row(
         children: [
-          // Navigation Rail for Desktop / Tablet Landscape
+          // Navigation Rail for Desktop/Tablet landscape
           if (isDesktop)
             NavigationRail(
               selectedIndex: _selectedIndex,
@@ -97,7 +105,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           
-          // Primary View Area with animated transitions
+          // Viewport container with sliding page switch animation
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
@@ -121,8 +129,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      
-      // Bottom Navigation Bar for Mobile and Tablet
       bottomNavigationBar: !isDesktop
           ? Container(
               decoration: BoxDecoration(
@@ -205,16 +211,25 @@ class _HomeView extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           
-          // Responsive layout grid of feature items
           ResponsiveLayout(
             mobile: Column(
               children: _buildHomeCards(context),
             ),
             tablet: Row(
-              children: _buildHomeCards(context).map((card) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4.0), child: card))).toList(),
+              children: _buildHomeCards(context)
+                  .map((card) => Expanded(
+                      child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: card)))
+                  .toList(),
             ),
             desktop: Row(
-              children: _buildHomeCards(context).map((card) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8.0), child: card))).toList(),
+              children: _buildHomeCards(context)
+                  .map((card) => Expanded(
+                      child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: card)))
+                  .toList(),
             ),
           ),
         ],
@@ -268,19 +283,51 @@ class _HomeView extends StatelessWidget {
   }
 }
 
-// ─── TAB VIEW: EXPLORE ────────────────────────────────────────────
-class _ExploreView extends StatelessWidget {
+// ─── TAB VIEW: EXPLORE (DATABASE DRIVEN) ──────────────────────────
+class _ExploreView extends StatefulWidget {
   const _ExploreView();
+
+  @override
+  State<_ExploreView> createState() => _ExploreViewState();
+}
+
+class _ExploreViewState extends State<_ExploreView> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch destinations on view load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<DestinationProvider>(context, listen: false).fetchDestinations();
+    });
+  }
+
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'account_balance_rounded':
+        return Icons.account_balance_rounded;
+      case 'landscape_rounded':
+        return Icons.landscape_rounded;
+      case 'beach_access_rounded':
+        return Icons.beach_access_rounded;
+      case 'forest_rounded':
+        return Icons.forest_rounded;
+      case 'temple_hindu_rounded':
+        return Icons.temple_hindu_rounded;
+      default:
+        return Icons.explore_rounded;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final provider = Provider.of<DestinationProvider>(context);
+
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search Bar
           SearchBar(
             leading: const Icon(Icons.search_rounded),
             hintText: 'Search destinations, parks, cities...',
@@ -289,38 +336,32 @@ class _ExploreView extends StatelessWidget {
             backgroundColor: WidgetStateProperty.all(theme.colorScheme.surfaceContainerHighest),
           ),
           const SizedBox(height: 24),
-          Text('Popular Destinations', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text('Popular Destinations (India)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
+          
           Expanded(
-            child: ListView.builder(
-              itemCount: 5,
-              itemBuilder: (context, index) {
-                final cities = [
-                  'Taj Mahal, Agra',
-                  'Manali, Himachal Pradesh',
-                  'Goa Beaches, Goa',
-                  'Munnar, Kerala',
-                  'Varanasi, Uttar Pradesh'
-                ];
-                final icons = [
-                  Icons.account_balance_rounded,
-                  Icons.landscape_rounded,
-                  Icons.beach_access_rounded,
-                  Icons.forest_rounded,
-                  Icons.temple_hindu_rounded
-                ];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    child: Icon(icons[index], color: theme.colorScheme.primary),
-                  ),
-                  title: Text(cities[index], style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Tap to explore travel guides and reviews'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {},
-                );
-              },
-            ),
+            child: provider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : provider.errorMessage != null
+                    ? Center(child: Text(provider.errorMessage!, style: TextStyle(color: theme.colorScheme.error)))
+                    : provider.destinations.isEmpty
+                        ? const Center(child: Text('No destinations found in database.'))
+                        : ListView.builder(
+                            itemCount: provider.destinations.length,
+                            itemBuilder: (context, index) {
+                              final dest = provider.destinations[index];
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                  child: Icon(_getIconData(dest['iconName'] ?? ''), color: theme.colorScheme.primary),
+                                ),
+                                title: Text(dest['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                subtitle: Text(dest['description'] ?? 'Tap to explore travel guides'),
+                                trailing: const Icon(Icons.chevron_right_rounded),
+                                onTap: () {},
+                              );
+                            },
+                          ),
           ),
         ],
       ),
@@ -328,86 +369,233 @@ class _ExploreView extends StatelessWidget {
   }
 }
 
-// ─── TAB VIEW: CREATE ─────────────────────────────────────────────
-class _CreateView extends StatelessWidget {
-  const _CreateView();
+// ─── TAB VIEW: CREATE (WRITE OPERATION) ───────────────────────────
+class _CreateView extends StatefulWidget {
+  final VoidCallback onTripCreated;
+
+  const _CreateView({required this.onTripCreated});
+
+  @override
+  State<_CreateView> createState() => _CreateViewState();
+}
+
+class _CreateViewState extends State<_CreateView> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _destinationController = TextEditingController();
+  final _spotsController = TextEditingController();
+  final _notesController = TextEditingController();
+
+  void _submitForm() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final tripProvider = Provider.of<TripProvider>(context, listen: false);
+
+    tripProvider.createTrip(
+      token: auth.accessToken!,
+      title: _titleController.text.trim(),
+      destination: _destinationController.text.trim(),
+      spotsCount: int.tryParse(_spotsController.text.trim()) ?? 0,
+      notes: _notesController.text.trim(),
+      onSuccess: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Trip logged to MongoDB successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _titleController.clear();
+        _destinationController.clear();
+        _spotsController.clear();
+        _notesController.clear();
+        widget.onTripCreated(); // Redirect to Trips tab list
+      },
+      onError: (err) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _destinationController.dispose();
+    _spotsController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_circle_outline_rounded, size: 80, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
-            const SizedBox(height: 16),
-            Text('Create Trip Entry', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-              'Add photos, notes, and highlights of your recent travels to save in your digital log.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+    final tripProvider = Provider.of<TripProvider>(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 450),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(Icons.add_circle_outline_rounded, size: 64, color: theme.colorScheme.primary),
+                const SizedBox(height: 16),
+                Text('Log a New Trip', textAlign: TextAlign.center, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(
+                  'Write travel logs directly to the MongoDB backend database.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 28),
+                
+                CustomTextField(
+                  controller: _titleController,
+                  label: 'Trip Title',
+                  hint: 'e.g. Summer Beach Getaway',
+                  prefixIcon: Icons.title_rounded,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return 'Please enter a trip title';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  controller: _destinationController,
+                  label: 'Destination Name',
+                  hint: 'e.g. Goa Beaches, Goa',
+                  prefixIcon: Icons.pin_drop_rounded,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return 'Please specify the destination';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  controller: _spotsController,
+                  label: 'Visited Places / Spots Count',
+                  hint: 'e.g. 5',
+                  prefixIcon: Icons.location_on_outlined,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  controller: _notesController,
+                  label: 'Travel Notes / Details',
+                  hint: 'Describe your favorite moments...',
+                  prefixIcon: Icons.note_alt_outlined,
+                ),
+                const SizedBox(height: 28),
+                
+                tripProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ElevatedButton.icon(
+                        onPressed: _submitForm,
+                        icon: const Icon(Icons.cloud_upload_rounded),
+                        label: const Text('Save to Cloud DB'),
+                      ),
+              ],
             ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Start Logging'),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─── TAB VIEW: TRIPS ──────────────────────────────────────────────
-class _TripsView extends StatelessWidget {
+// ─── TAB VIEW: TRIPS (DATABASE DRIVEN) ────────────────────────────
+class _TripsView extends StatefulWidget {
   const _TripsView();
+
+  @override
+  State<_TripsView> createState() => _TripsViewState();
+}
+
+class _TripsViewState extends State<_TripsView> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch trips list on view load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      Provider.of<TripProvider>(context, listen: false).fetchTrips(auth.accessToken!);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tripProvider = Provider.of<TripProvider>(context);
+
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Your Travel Logs', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text('Your Travel Logs (MongoDB)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
+          
           Expanded(
-            child: ListView.builder(
-              itemCount: 2,
-              itemBuilder: (context, index) {
-                final titles = ['Summer Beach Getaway', 'Weekend Mountain Trekking'];
-                final dates = ['July 10 - July 18', 'October 5 - October 7'];
-                final spots = ['12 places visited', '3 trails hiked'];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: theme.colorScheme.secondary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                      child: Icon(Icons.card_travel_rounded, color: theme.colorScheme.secondary),
-                    ),
-                    title: Text(titles[index], style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(dates[index], style: theme.textTheme.bodySmall),
-                        Text(spots[index], style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
-                      ],
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () {},
-                  ),
-                );
-              },
-            ),
+            child: tripProvider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : tripProvider.errorMessage != null
+                    ? Center(child: Text(tripProvider.errorMessage!, style: TextStyle(color: theme.colorScheme.error)))
+                    : tripProvider.trips.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.card_travel_rounded, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                                const SizedBox(height: 16),
+                                const Text('No trips logged yet.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                const SizedBox(height: 8),
+                                const Text('Tap the Create tab to write your first travel log!', textAlign: TextAlign.center),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: tripProvider.trips.length,
+                            itemBuilder: (context, index) {
+                              final trip = tripProvider.trips[index];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.all(16),
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                        color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8)),
+                                    child: Icon(Icons.card_travel_rounded, color: theme.colorScheme.secondary),
+                                  ),
+                                  title: Text(trip['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 4),
+                                      Text(trip['destination'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                      const SizedBox(height: 2),
+                                      Text('${trip['spotsCount'] ?? 0} spots visited', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
+                                      if (trip['notes'] != null && trip['notes'].toString().isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Text('Notes: ${trip['notes']}', style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
+                                      ],
+                                    ],
+                                  ),
+                                  trailing: const Icon(Icons.check_circle_rounded, color: Colors.green),
+                                  onTap: () {},
+                                ),
+                              );
+                            },
+                          ),
           ),
         ],
       ),
@@ -430,7 +618,6 @@ class _ProfileView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // User Avatar
           Center(
             child: Container(
               width: 100,
@@ -463,7 +650,6 @@ class _ProfileView extends StatelessWidget {
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 24),
-          
           Card(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -478,7 +664,6 @@ class _ProfileView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          
           _buildDetailItem(context, Icons.email_outlined, 'Email', (user['email'] ?? 'Not provided').toString()),
           _buildDetailItem(context, Icons.phone_outlined, 'Phone', (user['phone'] ?? 'Not provided').toString()),
           _buildDetailItem(context, Icons.public_outlined, 'Country', (user['country'] ?? 'Not specified').toString()),

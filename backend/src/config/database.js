@@ -16,6 +16,10 @@ const connectDB = async () => {
   try {
     console.log('[MongoDB] Attempting connection...');
     await mongoose.connect(MONGO_URI, options);
+    
+    // Auto-seed default destinations
+    const seedDestinations = require('./seedDestinations');
+    await seedDestinations();
   } catch (err) {
     console.error(`[MongoDB] Initial connection error: ${err.message}`);
     // Trigger initial retry logic
