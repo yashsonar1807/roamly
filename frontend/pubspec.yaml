@@ -22,6 +22,9 @@ dependencies:
   # Responsive UI
   flutter_screenutil: ^5.9.3
 
+  # Local Cache
+  shared_preferences: ^2.2.3
+
   # Icons
   cupertino_icons: ^1.0.8
 
