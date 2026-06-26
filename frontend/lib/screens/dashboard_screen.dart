@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../config/routes.dart';
 import '../providers/auth_provider.dart';
 import '../providers/destination_provider.dart';
 import '../providers/trip_provider.dart';
@@ -437,11 +438,19 @@ class _ExploreViewState extends State<_ExploreView> {
                                       ? dest['images'][0].toString()
                                       : 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600';
 
-                                  return Card(
-                                    clipBehavior: Clip.antiAlias,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    elevation: 2,
-                                    child: Column(
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.destinationDetail,
+                                        arguments: dest,
+                                      );
+                                    },
+                                    child: Card(
+                                      clipBehavior: Clip.antiAlias,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      elevation: 2,
+                                      child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
                                         // Image section with floating badges
@@ -530,8 +539,9 @@ class _ExploreViewState extends State<_ExploreView> {
                                         ),
                                       ],
                                     ),
-                                  );
-                                },
+                                  ),
+                                );
+                              },
                               ),
               ),
 

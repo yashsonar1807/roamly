@@ -5,6 +5,7 @@ import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
 import '../screens/forgot_password_screen.dart';
 import '../screens/dashboard_screen.dart';
+import '../screens/destination_detail_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -14,6 +15,7 @@ class AppRoutes {
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
   static const String home = '/home';
+  static const String destinationDetail = '/destination-detail';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -36,6 +38,11 @@ class AppRoutes {
       case home:
         return MaterialPageRoute(
           builder: (_) => const DashboardScreen(),
+        );
+      case destinationDetail:
+        final destination = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => DestinationDetailScreen(destination: destination),
         );
       default:
         return MaterialPageRoute(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../config/routes.dart';
 import '../providers/story_provider.dart';
 import '../providers/post_provider.dart';
 import '../providers/destination_provider.dart';
@@ -199,12 +200,20 @@ class _HomeViewState extends State<HomeView> {
                               return Container(
                                 width: 170,
                                 margin: const EdgeInsets.only(right: 16),
-                                child: Card(
-                                  clipBehavior: Clip.antiAlias,
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Image.network(imageUrl, fit: BoxFit.cover),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.destinationDetail,
+                                      arguments: item,
+                                    );
+                                  },
+                                  child: Card(
+                                    clipBehavior: Clip.antiAlias,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.network(imageUrl, fit: BoxFit.cover),
                                       Container(
                                         decoration: BoxDecoration(
                                           gradient: LinearGradient(
@@ -267,8 +276,9 @@ class _HomeViewState extends State<HomeView> {
                                     ],
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            );
+                          },
                           ),
               ),
               const SizedBox(height: 28),
@@ -288,9 +298,17 @@ class _HomeViewState extends State<HomeView> {
                     ? const Center(child: SizedBox(height: 24, width: 24, child: CircularProgressIndicator()))
                     : recommendedDest == null
                         ? const Center(child: Text('No recommended destinations.'))
-                        : Card(
-                            child: Row(
-                              children: [
+                        : GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.destinationDetail,
+                                arguments: recommendedDest,
+                              );
+                            },
+                            child: Card(
+                              child: Row(
+                                children: [
                                 ClipRRect(
                                   borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
                                   child: Image.network(
@@ -346,6 +364,7 @@ class _HomeViewState extends State<HomeView> {
                               ],
                             ),
                           ),
+                        ),
               ),
               const SizedBox(height: 28),
 
