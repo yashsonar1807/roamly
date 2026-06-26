@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/auth.routes');
 const destinationRoutes = require('./routes/destination.routes');
@@ -21,6 +22,9 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve local uploads folder statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Auth Routes Mount
 app.use('/api/v1/auth', authRoutes);
