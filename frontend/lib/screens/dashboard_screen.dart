@@ -5,6 +5,7 @@ import '../providers/destination_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/responsive.dart';
 import '../widgets/custom_text_field.dart';
+import 'home_view.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -30,6 +31,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  void _switchToCreateTab() {
+    setState(() {
+      _selectedIndex = 2; // Index of Create tab
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -37,7 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // View list passing appropriate callbacks
     final List<Widget> views = [
-      const _HomeView(),
+      HomeView(onCreateTripTap: _switchToCreateTab),
       const _ExploreView(),
       _CreateView(onTripCreated: _switchToTripsTab),
       const _TripsView(),
@@ -181,107 +188,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// ─── TAB VIEW: HOME ───────────────────────────────────────────────
-class _HomeView extends StatelessWidget {
-  const _HomeView();
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final auth = Provider.of<AuthProvider>(context);
-    final user = auth.user ?? {};
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Welcome, ${user['name'] ?? 'Traveler'} 👋',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Where do you want to explore next?',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 28),
-          
-          ResponsiveLayout(
-            mobile: Column(
-              children: _buildHomeCards(context),
-            ),
-            tablet: Row(
-              children: _buildHomeCards(context)
-                  .map((card) => Expanded(
-                      child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                          child: card)))
-                  .toList(),
-            ),
-            desktop: Row(
-              children: _buildHomeCards(context)
-                  .map((card) => Expanded(
-                      child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: card)))
-                  .toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildHomeCards(BuildContext context) {
-    final theme = Theme.of(context);
-    return [
-      Card(
-        color: theme.colorScheme.primaryContainer,
-        child: InkWell(
-          onTap: () {},
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.flight_takeoff_rounded, size: 36, color: theme.colorScheme.onPrimaryContainer),
-                const SizedBox(height: 16),
-                Text('Plan New Trip', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimaryContainer)),
-                const SizedBox(height: 4),
-                Text('Create customizable itineraries and checklists', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8))),
-              ],
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Card(
-        color: theme.colorScheme.secondaryContainer,
-        child: InkWell(
-          onTap: () {},
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.map_rounded, size: 36, color: theme.colorScheme.onSecondaryContainer),
-                const SizedBox(height: 16),
-                Text('Explore Map', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSecondaryContainer)),
-                const SizedBox(height: 4),
-                Text('Search popular spots and hidden locations nearby', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSecondaryContainer.withValues(alpha: 0.8))),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ];
-  }
-}
 
 // ─── TAB VIEW: EXPLORE (DATABASE DRIVEN) ──────────────────────────
 class _ExploreView extends StatefulWidget {
