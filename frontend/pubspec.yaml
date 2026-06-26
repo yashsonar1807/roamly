@@ -1,0 +1,34 @@
+name: romaly
+description: "Romaly - A production-ready Flutter app with Clean Architecture."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  provider: ^6.1.2
+
+  # API Calls
+  dio: ^5.7.0
+
+  # Typography & Design
+  google_fonts: ^6.2.0
+
+  # Responsive UI
+  flutter_screenutil: ^5.9.3
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true

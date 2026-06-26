@@ -1,0 +1,14 @@
+# Dependency directories
+node_modules/
+
+# Local env files
+.env
+.env.local
+
+# File uploads
+src/uploads/*
+!src/uploads/.gitkeep
+
+# System files
+.DS_Store
+Thumbs.db
