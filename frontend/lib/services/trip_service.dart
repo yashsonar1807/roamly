@@ -39,14 +39,12 @@ class TripService {
   }
 
   /// Log a new trip entry to database
-  Future<Map<String, dynamic>> logTrip({
+  Future<Map<String, dynamic>> createTrip({
     required String token,
     required String title,
     required String destination,
-    DateTime? startDate,
-    DateTime? endDate,
     int? spotsCount,
-    required String notes,
+    String? notes,
   }) async {
     try {
       final response = await _dio.post(
@@ -54,14 +52,53 @@ class TripService {
         data: {
           'title': title,
           'destination': destination,
-          'startDate': startDate?.toIso8601String(),
-          'endDate': endDate?.toIso8601String(),
-          'spotsCount': spotsCount ?? 0,
-          'notes': notes,
+          'spotsCount': spotsCount ?? 1,
+          'notes': notes ?? '',
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> updateTrip({
+    required String token,
+    required String id,
+    String? title,
+    String? destination,
+    int? spotsCount,
+    String? notes,
+    String? status,
+  }) async {
+    try {
+      final Map<String, dynamic> data = {};
+      if (title != null) data['title'] = title;
+      if (destination != null) data['destination'] = destination;
+      if (spotsCount != null) data['spotsCount'] = spotsCount;
+      if (notes != null) data['notes'] = notes;
+      if (status != null) data['status'] = status;
+      final response = await _dio.put(
+        '/$id',
+        data: data,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<void> deleteTrip({
+    required String token,
+    required String id,
+  }) async {
+    try {
+      await _dio.delete(
+        '/$id',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
     } on DioException catch (e) {
       throw _handleError(e);
     }

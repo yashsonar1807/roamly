@@ -120,6 +120,7 @@ class AuthService {
     String? phone,
     String? bio,
     String? country,
+    String? profileImage,
   }) async {
     try {
       final Map<String, dynamic> data = {};
@@ -127,6 +128,7 @@ class AuthService {
       if (phone != null) data['phone'] = phone;
       if (bio != null) data['bio'] = bio;
       if (country != null) data['country'] = country;
+      if (profileImage != null) data['profileImage'] = profileImage;
 
       final response = await _dio.put(
         '/profile',

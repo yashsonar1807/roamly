@@ -5,15 +5,22 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * @desc    Get all feed posts from database (sorted newest first)
+ * @desc    Get all feed posts from database (sorted newest first) with pagination
  * @route   GET /api/v1/posts
  * @access  Public
  */
 const getPosts = async (req, res, next) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Post.countDocuments();
     const posts = await Post.find()
       .populate('user', 'name username avatar')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     // Format output with compatibility fallbacks for seeded assets
     const formattedPosts = posts.map((post) => {
@@ -41,6 +48,13 @@ const getPosts = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       results: formattedPosts.length,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
       data: {
         posts: formattedPosts,
       },

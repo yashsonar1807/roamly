@@ -27,6 +27,20 @@ const tripSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    budget: {
+      type: Number,
+      default: 0,
+    },
+    hotel: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    status: {
+      type: String,
+      enum: ['Upcoming', 'Completed', 'Cancelled'],
+      default: 'Upcoming',
+    },
     notes: {
       type: String,
       trim: true,

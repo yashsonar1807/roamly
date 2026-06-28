@@ -8,6 +8,8 @@ const destinationRoutes = require('./routes/destination.routes');
 const tripRoutes = require('./routes/trip.routes');
 const storyRoutes = require('./routes/story.routes');
 const postRoutes = require('./routes/post.routes');
+const userRoutes = require('./routes/user.routes');
+const reviewRoutes = require('./routes/review.routes');
 
 // Load environment variables
 dotenv.config();
@@ -32,6 +34,8 @@ app.use('/api/v1/destinations', destinationRoutes);
 app.use('/api/v1/trips', tripRoutes);
 app.use('/api/v1/stories', storyRoutes);
 app.use('/api/v1/posts', postRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
 
 // Default / Health Check Route
 app.get('/', (req, res) => {

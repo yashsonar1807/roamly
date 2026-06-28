@@ -9,6 +9,7 @@ import 'providers/destination_provider.dart';
 import 'providers/trip_provider.dart';
 import 'providers/story_provider.dart';
 import 'providers/post_provider.dart';
+import 'providers/user_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,7 @@ class RoamlyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(create: (_) => StoryProvider()),
         ChangeNotifierProvider(create: (_) => PostProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
       child: ScreenUtilInit(
         designSize: const Size(375, 812),
@@ -38,7 +40,7 @@ class RoamlyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: ThemeMode.system,
+            themeMode: ThemeMode.light,
             initialRoute: AppRoutes.splash,
             onGenerateRoute: AppRoutes.onGenerateRoute,
           );

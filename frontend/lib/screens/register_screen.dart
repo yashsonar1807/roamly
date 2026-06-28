@@ -66,10 +66,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     const SizedBox(height: 10),
                     Center(
-                      child: Icon(
-                        Icons.person_add_alt_1_rounded,
-                        size: 64,
-                        color: Theme.of(context).colorScheme.primary,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/images/logo_primary.jpg',
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),

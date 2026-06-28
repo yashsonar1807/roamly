@@ -169,6 +169,7 @@ class AuthProvider extends ChangeNotifier {
     String? phone,
     String? bio,
     String? country,
+    String? profileImage,
   }) async {
     if (_accessToken == null) return false;
 
@@ -179,6 +180,7 @@ class AuthProvider extends ChangeNotifier {
         phone: phone,
         bio: bio,
         country: country,
+        profileImage: profileImage,
       );
       _user = response['data']['user'];
       notifyListeners();

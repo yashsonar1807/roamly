@@ -4,9 +4,14 @@ import '../config/routes.dart';
 import '../providers/auth_provider.dart';
 import '../providers/destination_provider.dart';
 import '../providers/trip_provider.dart';
+import '../providers/user_provider.dart';
 import '../utils/responsive.dart';
 import '../widgets/custom_text_field.dart';
 import 'home_view.dart';
+import 'create_view.dart';
+import 'trips_view.dart';
+import 'profile_view.dart';
+
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -43,31 +48,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
     final isDesktop = context.isDesktop;
 
-    // View list passing appropriate callbacks
     final List<Widget> views = [
-      HomeView(onCreateTripTap: _switchToCreateTab),
+      HomeView(
+        onCreateTripTap: _switchToCreateTab,
+        onExploreTap: () {
+          setState(() {
+            _selectedIndex = 1;
+          });
+        },
+      ),
       const _ExploreView(),
-      _CreateView(onTripCreated: _switchToTripsTab),
-      const _TripsView(),
-      const _ProfileView(),
+      CreateView(onTripCreated: _switchToTripsTab),
+      const TripsView(),
+      const ProfileView(),
     ];
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
+        title: _selectedIndex == 0
+            ? Image.asset(
+                Theme.of(context).brightness == Brightness.dark
+                    ? 'assets/images/logo_dark.png'
+                    : 'assets/images/logo_light.png',
+                height: 32,
+              )
+            : Text(_titles[_selectedIndex]),
         elevation: 0,
         actions: _selectedIndex == 4
             ? [
                 IconButton(
                   icon: const Icon(Icons.logout_rounded),
                   onPressed: () async {
-                    final auth = Provider.of<AuthProvider>(context, listen: false);
+                    final auth = Provider.of<AuthProvider>(
+                      context,
+                      listen: false,
+                    );
                     await auth.logout();
                     if (context.mounted) {
                       Navigator.pushReplacementNamed(context, '/login');
                     }
                   },
-                )
+                ),
               ]
             : null,
       ),
@@ -112,7 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ],
             ),
-          
+
           // Viewport container with sliding page switch animation
           Expanded(
             child: AnimatedSwitcher(
@@ -189,8 +210,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-
-
 // ─── TAB VIEW: EXPLORE (ADVANCED DRIVEN) ──────────────────────────
 class _ExploreView extends StatefulWidget {
   const _ExploreView();
@@ -201,6 +220,7 @@ class _ExploreView extends StatefulWidget {
 
 class _ExploreViewState extends State<_ExploreView> {
   final TextEditingController _searchController = TextEditingController();
+  int _searchTypeIndex = 0; // 0 for Places, 1 for People
 
   final List<Map<String, String>> _categories = [
     {'name': 'All', 'icon': '🌍'},
@@ -222,6 +242,9 @@ class _ExploreViewState extends State<_ExploreView> {
       provider.resetFilters();
       _searchController.clear();
       provider.fetchDestinations(usePaginationFilters: true);
+
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      userProvider.clearSearch();
     });
   }
 
@@ -232,9 +255,18 @@ class _ExploreViewState extends State<_ExploreView> {
   }
 
   void _triggerSearch(String val) {
-    final provider = Provider.of<DestinationProvider>(context, listen: false);
-    provider.setSearchQuery(val);
-    provider.fetchDestinations(usePaginationFilters: true);
+    if (_searchTypeIndex == 0) {
+      final provider = Provider.of<DestinationProvider>(context, listen: false);
+      provider.setSearchQuery(val);
+      provider.fetchDestinations(usePaginationFilters: true);
+    } else {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (val.trim().isNotEmpty) {
+        userProvider.searchUsers(val);
+      } else {
+        userProvider.clearSearch();
+      }
+    }
   }
 
   void _changeCategory(String categoryName) {
@@ -250,13 +282,24 @@ class _ExploreViewState extends State<_ExploreView> {
   }
 
   void _loadData() {
-    Provider.of<DestinationProvider>(context, listen: false).fetchDestinations(usePaginationFilters: true);
+    if (_searchTypeIndex == 0) {
+      Provider.of<DestinationProvider>(
+        context,
+        listen: false,
+      ).fetchDestinations(usePaginationFilters: true);
+    } else {
+      Provider.of<UserProvider>(
+        context,
+        listen: false,
+      ).searchUsers(_searchController.text);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final provider = Provider.of<DestinationProvider>(context);
+    final userProvider = Provider.of<UserProvider>(context);
 
     // Responsive grid cross-axis count calculation
     final width = MediaQuery.of(context).size.width;
@@ -288,10 +331,18 @@ class _ExploreViewState extends State<_ExploreView> {
                     child: SearchBar(
                       controller: _searchController,
                       leading: const Icon(Icons.search_rounded),
-                      hintText: 'Search by destination, name, city...',
+                      hintText: _searchTypeIndex == 0
+                          ? 'Search destinations...'
+                          : 'Search people...',
                       elevation: WidgetStateProperty.all(0),
-                      backgroundColor: WidgetStateProperty.all(theme.colorScheme.surfaceContainerHighest),
-                      shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      backgroundColor: WidgetStateProperty.all(
+                        theme.colorScheme.surfaceContainerHighest,
+                      ),
+                      shape: WidgetStateProperty.all(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
                       onSubmitted: _triggerSearch,
                       trailing: [
                         if (_searchController.text.isNotEmpty)
@@ -306,176 +357,279 @@ class _ExploreViewState extends State<_ExploreView> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
+                  SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                      ),
+                      onPressed: () => _triggerSearch(_searchController.text),
+                      child: const Icon(Icons.search_rounded),
                     ),
-                    onPressed: () => _triggerSearch(_searchController.text),
-                    child: const Icon(Icons.search_rounded),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // 2. CATEGORIES SELECTOR
-              SizedBox(
-                height: 44,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _categories.length,
-                  itemBuilder: (context, index) {
-                    final cat = _categories[index];
-                    final isSelected = provider.selectedCategory == cat['name'];
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text('${cat['icon']}  ${cat['name']}'),
-                        selected: isSelected,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        onSelected: (selected) {
-                          if (selected) {
-                            _changeCategory(cat['name']!);
-                          }
-                        },
-                      ),
-                    );
-                  },
+              // 2. TOGGLE PLACES / PEOPLE
+              SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(
+                    value: 0,
+                    label: Text('Places'),
+                    icon: Icon(Icons.place_rounded),
+                  ),
+                  ButtonSegment(
+                    value: 1,
+                    label: Text('People'),
+                    icon: Icon(Icons.person_search_rounded),
+                  ),
+                ],
+                selected: {_searchTypeIndex},
+                onSelectionChanged: (Set<int> newSelection) {
+                  setState(() {
+                    _searchTypeIndex = newSelection.first;
+                    _triggerSearch(_searchController.text);
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // conditionally show filters if Places is selected
+              if (_searchTypeIndex == 0) ...[
+                // CATEGORIES SELECTOR
+                SizedBox(
+                  height: 44,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _categories.length,
+                    itemBuilder: (context, index) {
+                      final cat = _categories[index];
+                      final isSelected =
+                          provider.selectedCategory == cat['name'];
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ChoiceChip(
+                          label: Text('${cat['icon']}  ${cat['name']}'),
+                          selected: isSelected,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          onSelected: (selected) {
+                            if (selected) {
+                              _changeCategory(cat['name']!);
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-              // 3. MINIMUM RATINGS CHIP ROW
-              Row(
-                children: [
-                  Text(
-                    'Min Rating:',
-                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: SizedBox(
-                      height: 38,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _ratingFilters.length,
-                        itemBuilder: (context, index) {
-                          final ratingVal = _ratingFilters[index];
-                          final isSelected = provider.minRating == ratingVal;
-                          final label = ratingVal == null ? 'All' : '⭐ $ratingVal+';
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: ChoiceChip(
-                              label: Text(label, style: const TextStyle(fontSize: 11)),
-                              selected: isSelected,
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              onSelected: (selected) {
-                                if (selected) {
-                                  _changeMinRating(ratingVal);
-                                }
-                              },
-                            ),
-                          );
-                        },
+                // MINIMUM RATINGS CHIP ROW
+                Row(
+                  children: [
+                    Text(
+                      'Min Rating:',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 38,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _ratingFilters.length,
+                          itemBuilder: (context, index) {
+                            final ratingVal = _ratingFilters[index];
+                            final isSelected = provider.minRating == ratingVal;
+                            final label = ratingVal == null
+                                ? 'All'
+                                : '⭐ $ratingVal+';
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: ChoiceChip(
+                                label: Text(
+                                  label,
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                selected: isSelected,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 0,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    _changeMinRating(ratingVal);
+                                  }
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
 
-              // 4. GRID OF DESTINATIONS
+              // 4. MAIN CONTENT AREA
               Expanded(
-                child: provider.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : provider.errorMessage != null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error_outline_rounded, color: theme.colorScheme.error, size: 48),
-                                const SizedBox(height: 16),
-                                Text(provider.errorMessage!, style: TextStyle(color: theme.colorScheme.error)),
-                                const SizedBox(height: 12),
-                                ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
-                              ],
-                            ),
-                          )
-                        : provider.destinations.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.search_off_rounded, size: 56, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-                                    const SizedBox(height: 16),
-                                    const Text('No destinations match your search filters.', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 8),
-                                    TextButton(
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        provider.resetFilters();
-                                        provider.fetchDestinations(usePaginationFilters: true);
-                                      },
-                                      child: const Text('Reset All Filters'),
+                child: _searchTypeIndex == 0
+                    // --- DESTINATIONS LIST ---
+                    ? (provider.isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : provider.errorMessage != null
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline_rounded,
+                                    color: theme.colorScheme.error,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    provider.errorMessage!,
+                                    style: TextStyle(
+                                      color: theme.colorScheme.error,
                                     ),
-                                  ],
-                                ),
-                              )
-                            : GridView.builder(
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                  childAspectRatio: childAspectRatio,
-                                ),
-                                itemCount: provider.destinations.length,
-                                itemBuilder: (context, index) {
-                                  final dest = provider.destinations[index];
-                                  final imageUrl = (dest['images'] != null && (dest['images'] as List).isNotEmpty)
-                                      ? dest['images'][0].toString()
-                                      : 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600';
-
-                                  return GestureDetector(
-                                    onTap: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        AppRoutes.destinationDetail,
-                                        arguments: dest,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: _loadData,
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : provider.destinations.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off_rounded,
+                                    size: 56,
+                                    color: theme.colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'No destinations match your search filters.',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      provider.resetFilters();
+                                      provider.fetchDestinations(
+                                        usePaginationFilters: true,
                                       );
                                     },
-                                    child: Card(
-                                      clipBehavior: Clip.antiAlias,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                      elevation: 2,
-                                      child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    child: const Text('Reset All Filters'),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : GridView.builder(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossAxisCount,
+                                    crossAxisSpacing: 14,
+                                    mainAxisSpacing: 14,
+                                    childAspectRatio: childAspectRatio,
+                                  ),
+                              itemCount: provider.destinations.length,
+                              itemBuilder: (context, index) {
+                                final dest = provider.destinations[index];
+                                final imageUrl =
+                                    (dest['images'] != null &&
+                                        (dest['images'] as List).isNotEmpty)
+                                    ? dest['images'][0].toString()
+                                    : 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600';
+
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.destinationDetail,
+                                      arguments: dest,
+                                    );
+                                  },
+                                  child: Card(
+                                    clipBehavior: Clip.antiAlias,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    elevation: 2,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
                                         // Image section with floating badges
                                         Expanded(
                                           child: Stack(
                                             fit: StackFit.expand,
                                             children: [
-                                              Image.network(imageUrl, fit: BoxFit.cover),
+                                              Image.network(
+                                                imageUrl,
+                                                fit: BoxFit.cover,
+                                              ),
                                               // Rating Badge
                                               Positioned(
                                                 top: 10,
                                                 left: 10,
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
                                                   decoration: BoxDecoration(
-                                                    color: Colors.black.withValues(alpha: 0.7),
-                                                    borderRadius: BorderRadius.circular(8),
+                                                    color: Colors.black
+                                                        .withValues(alpha: 0.7),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                   ),
                                                   child: Row(
                                                     children: [
-                                                      const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                                                      const Icon(
+                                                        Icons.star_rounded,
+                                                        color: Colors.amber,
+                                                        size: 14,
+                                                      ),
                                                       const SizedBox(width: 4),
                                                       Text(
-                                                        (dest['rating'] ?? '4.8').toString(),
-                                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                                        (dest['rating'] ??
+                                                                '4.8')
+                                                            .toString(),
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
@@ -486,14 +640,32 @@ class _ExploreViewState extends State<_ExploreView> {
                                                 top: 10,
                                                 right: 10,
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
                                                   decoration: BoxDecoration(
-                                                    color: theme.colorScheme.primary.withValues(alpha: 0.9),
-                                                    borderRadius: BorderRadius.circular(8),
+                                                    color: theme
+                                                        .colorScheme
+                                                        .primary
+                                                        .withValues(alpha: 0.9),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
                                                   ),
                                                   child: Text(
-                                                    (dest['category'] ?? 'TRAVEL').toString().toUpperCase(),
-                                                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                                    (dest['category'] ??
+                                                            'TRAVEL')
+                                                        .toString()
+                                                        .toUpperCase(),
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 9,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -504,25 +676,46 @@ class _ExploreViewState extends State<_ExploreView> {
                                         Padding(
                                           padding: const EdgeInsets.all(12.0),
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 dest['name'] ?? '',
-                                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                                style: theme
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                               const SizedBox(height: 2),
                                               Row(
                                                 children: [
-                                                  Icon(Icons.location_on_rounded, color: theme.colorScheme.primary, size: 12),
+                                                  Icon(
+                                                    Icons.location_on_rounded,
+                                                    color: theme
+                                                        .colorScheme
+                                                        .primary,
+                                                    size: 12,
+                                                  ),
                                                   const SizedBox(width: 4),
                                                   Expanded(
                                                     child: Text(
                                                       '${dest['city'] ?? ''}, ${dest['country'] ?? ''}',
-                                                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                                      style: theme
+                                                          .textTheme
+                                                          .bodySmall
+                                                          ?.copyWith(
+                                                            color: theme
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                          ),
                                                       maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                 ],
@@ -530,7 +723,8 @@ class _ExploreViewState extends State<_ExploreView> {
                                               const SizedBox(height: 6),
                                               Text(
                                                 dest['description'] ?? '',
-                                                style: theme.textTheme.bodySmall?.copyWith(height: 1.3),
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(height: 1.3),
                                                 maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
@@ -542,7 +736,85 @@ class _ExploreViewState extends State<_ExploreView> {
                                   ),
                                 );
                               },
+                            ))
+                    // --- USERS LIST ---
+                    : (userProvider.isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : userProvider.errorMessage != null
+                          ? Center(
+                              child: Text(
+                                userProvider.errorMessage!,
+                                style: TextStyle(
+                                  color: theme.colorScheme.error,
+                                ),
                               ),
+                            )
+                          : userProvider.searchResults.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.person_search_rounded,
+                                    size: 56,
+                                    color: theme.colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _searchController.text.isEmpty
+                                        ? 'Search for people'
+                                        : 'No users found.',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: userProvider.searchResults.length,
+                              separatorBuilder: (context, index) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final user = userProvider.searchResults[index];
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 8.0,
+                                    horizontal: 8.0,
+                                  ),
+                                  leading: CircleAvatar(
+                                    radius: 24,
+                                    backgroundImage:
+                                        user.profileImage.isNotEmpty
+                                        ? NetworkImage(user.profileImage)
+                                        : null,
+                                    child: user.profileImage.isEmpty
+                                        ? const Icon(Icons.person)
+                                        : null,
+                                  ),
+                                  title: Text(
+                                    user.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: Text('@${user.username}'),
+                                  trailing: OutlinedButton(
+                                    onPressed: () {},
+                                    style: OutlinedButton.styleFrom(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                    ),
+                                    child: const Text('Follow'),
+                                  ),
+                                  onTap: () {
+                                    // Navigate to user profile later
+                                  },
+                                );
+                              },
+                            )),
               ),
 
               // 5. PAGINATION SELECTOR FOOTER (Shown only if totalPages > 1)
@@ -559,14 +831,19 @@ class _ExploreViewState extends State<_ExploreView> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         'Page ${provider.currentPage} of ${provider.totalPages}',
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -587,345 +864,3 @@ class _ExploreViewState extends State<_ExploreView> {
   }
 }
 
-// ─── TAB VIEW: CREATE (WRITE OPERATION) ───────────────────────────
-class _CreateView extends StatefulWidget {
-  final VoidCallback onTripCreated;
-
-  const _CreateView({required this.onTripCreated});
-
-  @override
-  State<_CreateView> createState() => _CreateViewState();
-}
-
-class _CreateViewState extends State<_CreateView> {
-  final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _destinationController = TextEditingController();
-  final _spotsController = TextEditingController();
-  final _notesController = TextEditingController();
-
-  void _submitForm() {
-    if (!_formKey.currentState!.validate()) return;
-
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final tripProvider = Provider.of<TripProvider>(context, listen: false);
-
-    tripProvider.createTrip(
-      token: auth.accessToken!,
-      title: _titleController.text.trim(),
-      destination: _destinationController.text.trim(),
-      spotsCount: int.tryParse(_spotsController.text.trim()) ?? 0,
-      notes: _notesController.text.trim(),
-      onSuccess: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Trip logged to MongoDB successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _titleController.clear();
-        _destinationController.clear();
-        _spotsController.clear();
-        _notesController.clear();
-        widget.onTripCreated(); // Redirect to Trips tab list
-      },
-      onError: (err) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(err),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _destinationController.dispose();
-    _spotsController.dispose();
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tripProvider = Provider.of<TripProvider>(context);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 450),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(Icons.add_circle_outline_rounded, size: 64, color: theme.colorScheme.primary),
-                const SizedBox(height: 16),
-                Text('Log a New Trip', textAlign: TextAlign.center, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(
-                  'Write travel logs directly to the MongoDB backend database.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 28),
-                
-                CustomTextField(
-                  controller: _titleController,
-                  label: 'Trip Title',
-                  hint: 'e.g. Summer Beach Getaway',
-                  prefixIcon: Icons.title_rounded,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Please enter a trip title';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _destinationController,
-                  label: 'Destination Name',
-                  hint: 'e.g. Goa Beaches, Goa',
-                  prefixIcon: Icons.pin_drop_rounded,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Please specify the destination';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _spotsController,
-                  label: 'Visited Places / Spots Count',
-                  hint: 'e.g. 5',
-                  prefixIcon: Icons.location_on_outlined,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _notesController,
-                  label: 'Travel Notes / Details',
-                  hint: 'Describe your favorite moments...',
-                  prefixIcon: Icons.note_alt_outlined,
-                ),
-                const SizedBox(height: 28),
-                
-                tripProvider.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton.icon(
-                        onPressed: _submitForm,
-                        icon: const Icon(Icons.cloud_upload_rounded),
-                        label: const Text('Save to Cloud DB'),
-                      ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── TAB VIEW: TRIPS (DATABASE DRIVEN) ────────────────────────────
-class _TripsView extends StatefulWidget {
-  const _TripsView();
-
-  @override
-  State<_TripsView> createState() => _TripsViewState();
-}
-
-class _TripsViewState extends State<_TripsView> {
-  @override
-  void initState() {
-    super.initState();
-    // Fetch trips list on view load
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      Provider.of<TripProvider>(context, listen: false).fetchTrips(auth.accessToken!);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tripProvider = Provider.of<TripProvider>(context);
-
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Your Travel Logs (MongoDB)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          
-          Expanded(
-            child: tripProvider.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : tripProvider.errorMessage != null
-                    ? Center(child: Text(tripProvider.errorMessage!, style: TextStyle(color: theme.colorScheme.error)))
-                    : tripProvider.trips.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.card_travel_rounded, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-                                const SizedBox(height: 16),
-                                const Text('No trips logged yet.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                const SizedBox(height: 8),
-                                const Text('Tap the Create tab to write your first travel log!', textAlign: TextAlign.center),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: tripProvider.trips.length,
-                            itemBuilder: (context, index) {
-                              final trip = tripProvider.trips[index];
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(16),
-                                  leading: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                        color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8)),
-                                    child: Icon(Icons.card_travel_rounded, color: theme.colorScheme.secondary),
-                                  ),
-                                  title: Text(trip['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 4),
-                                      Text(trip['destination'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
-                                      const SizedBox(height: 2),
-                                      Text('${trip['spotsCount'] ?? 0} spots visited', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
-                                      if (trip['notes'] != null && trip['notes'].toString().isNotEmpty) ...[
-                                        const SizedBox(height: 6),
-                                        Text('Notes: ${trip['notes']}', style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
-                                      ],
-                                    ],
-                                  ),
-                                  trailing: const Icon(Icons.check_circle_rounded, color: Colors.green),
-                                  onTap: () {},
-                                ),
-                              );
-                            },
-                          ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── TAB VIEW: PROFILE ────────────────────────────────────────────
-class _ProfileView extends StatelessWidget {
-  const _ProfileView();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final auth = Provider.of<AuthProvider>(context);
-    final user = auth.user ?? {};
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  (user['name'] ?? 'U').toString().substring(0, 1).toUpperCase(),
-                  style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            (user['name'] ?? 'Guest').toString(),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          Text(
-            '@${user['username'] ?? 'guest'}',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 24),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildStatColumn(context, 'Followers', (user['followersCount'] ?? 0).toString()),
-                  Container(height: 30, width: 1, color: theme.colorScheme.outline.withValues(alpha: 0.5)),
-                  _buildStatColumn(context, 'Following', (user['followingCount'] ?? 0).toString()),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          _buildDetailItem(context, Icons.email_outlined, 'Email', (user['email'] ?? 'Not provided').toString()),
-          _buildDetailItem(context, Icons.phone_outlined, 'Phone', (user['phone'] ?? 'Not provided').toString()),
-          _buildDetailItem(context, Icons.public_outlined, 'Country', (user['country'] ?? 'Not specified').toString()),
-          _buildDetailItem(context, Icons.description_outlined, 'Bio', (user['bio'] ?? 'No bio written yet.').toString()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatColumn(BuildContext context, String label, String count) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Text(
-          count,
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-      ],
-    );
-  }
-
-  Widget _buildDetailItem(BuildContext context, IconData icon, String label, String value) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 22, color: theme.colorScheme.primary.withValues(alpha: 0.7)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Text(value, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../widgets/custom_text_field.dart';
+import '../services/review_service.dart';
+import '../services/user_service.dart';
 
 class DestinationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> destination;
@@ -19,29 +22,65 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
   int _currentImageIndex = 0;
   bool _isSaved = false;
 
-  // Mock traveler reviews generator based on destination name
-  late final List<Map<String, String>> _mockReviews;
+  final ReviewService _reviewService = ReviewService();
+  final UserService _userService = UserService();
+  List<dynamic> _reviews = [];
+  bool _isLoadingReviews = true;
+  double _currentAvgRating = 0.0;
+  int _totalReviewsCount = 0;
 
   @override
   void initState() {
     super.initState();
-    final name = widget.destination['name'] ?? 'Destination';
-    _mockReviews = [
-      {
-        'author': 'Aarav Mehta',
-        'avatar': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150',
-        'rating': '5.0',
-        'comment': 'Absolutely breathtaking! Visited $name last week and it was a magical experience. Highly recommend early mornings.',
-        'date': '2 days ago',
-      },
-      {
-        'author': 'Diya Sen',
-        'avatar': 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150',
-        'rating': '4.8',
-        'comment': 'Stunning architecture and great atmosphere. There are plenty of guides around, but make sure to capture the views from the east side!',
-        'date': '1 week ago',
-      },
-    ];
+    _currentAvgRating = (widget.destination['rating'] ?? 0.0).toDouble();
+    _fetchReviews();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkIfSaved();
+    });
+  }
+  
+  Future<void> _checkIfSaved() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.accessToken == null) return;
+    try {
+      final savedDests = await _userService.getSavedDestinations(auth.accessToken!);
+      final isSaved = savedDests.any((d) => d['_id'] == widget.destination['_id']);
+      if (mounted) {
+        setState(() {
+          _isSaved = isSaved;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking saved status: ');
+    }
+  }
+
+  Future<void> _fetchReviews() async {
+    setState(() => _isLoadingReviews = true);
+    try {
+      final destId = widget.destination['_id'];
+      final res = await _reviewService.fetchReviews(destId);
+      if (res['status'] == 'success') {
+        setState(() {
+          _reviews = res['data']['reviews'];
+          _totalReviewsCount = res['pagination']['total'];
+          // Calculate new average manually for instant UI update
+          if (_reviews.isNotEmpty) {
+            double total = 0;
+            for (var r in _reviews) {
+              total += (r['rating'] as num).toDouble();
+            }
+            _currentAvgRating = total / _reviews.length;
+          } else {
+            _currentAvgRating = 0.0;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching reviews: ');
+    } finally {
+      setState(() => _isLoadingReviews = false);
+    }
   }
 
   void _toggleSave() {
@@ -51,8 +90,8 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(_isSaved 
-            ? 'Saved ${widget.destination['name']} to Bookmarks!' 
-            : 'Removed ${widget.destination['name']} from Bookmarks.'),
+            ? 'Saved \ to Bookmarks!' 
+            : 'Removed \ from Bookmarks.'),
         backgroundColor: _isSaved ? Colors.green : Colors.grey[850],
         duration: const Duration(seconds: 2),
       ),
@@ -60,11 +99,11 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
   }
 
   void _shareDestination() {
-    final shareUrl = 'https://roamly.com/destinations/${widget.destination['_id'] ?? 'explore'}';
+    final shareUrl = 'https://roamly.com/destinations/';
     Clipboard.setData(ClipboardData(text: shareUrl));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Share link for ${widget.destination['name']} copied to clipboard!'),
+        content: Text('Share link for \ copied to clipboard!'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         duration: const Duration(seconds: 2),
       ),
@@ -74,13 +113,13 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
   Future<void> _openGoogleMapsRedirect() async {
     final lat = widget.destination['latitude'] ?? 0.0;
     final lng = widget.destination['longitude'] ?? 0.0;
-    final Uri mapUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    final Uri mapUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=\,');
     
     try {
       if (await canLaunchUrl(mapUri)) {
         await launchUrl(mapUri, mode: LaunchMode.externalApplication);
       } else {
-        throw 'Could not launch $mapUri';
+        throw 'Could not launch ';
       }
     } catch (e) {
       // Copy URL to clipboard and show feedback if launch fails
@@ -88,7 +127,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Opening map failed. Coordinates copied to clipboard: $lat, $lng'),
+            content: Text('Opening map failed. Coordinates copied to clipboard: \, '),
             backgroundColor: Colors.red,
           ),
         );
@@ -108,8 +147,8 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
     }
 
     final formKey = GlobalKey<FormState>();
-    final titleController = TextEditingController(text: 'My Trip to ${widget.destination['name']}');
-    final destController = TextEditingController(text: '${widget.destination['name']}, ${widget.destination['city']}');
+    final titleController = TextEditingController(text: 'My Trip to ');
+    final destController = TextEditingController(text: '\, ');
     final spotsController = TextEditingController(text: '3');
     final notesController = TextEditingController();
 
@@ -138,7 +177,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                       width: 48,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -150,7 +189,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Pre-fill travel logs for ${widget.destination['name']} in MongoDB.',
+                    'Pre-fill travel logs for \ in MongoDB.',
                     style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 20),
@@ -233,10 +272,137 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
     );
   }
 
+  void _showReviewBottomSheet(BuildContext context, {Map<String, dynamic>? existingReview}) {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.accessToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please log in to leave a review.')));
+      return;
+    }
+
+    final formKey = GlobalKey<FormState>();
+    final commentController = TextEditingController(text: existingReview != null ? existingReview['comment'] : '');
+    double rating = existingReview != null ? (existingReview['rating'] as num).toDouble() : 5.0;
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                top: 24, left: 24, right: 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 48, height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        existingReview != null ? 'Edit Your Review' : 'Write a Review',
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 20),
+                      RatingBar.builder(
+                        initialRating: rating,
+                        minRating: 1,
+                        direction: Axis.horizontal,
+                        allowHalfRating: true,
+                        itemCount: 5,
+                        itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        itemBuilder: (context, _) => const Icon(Icons.star_rounded, color: Colors.amber),
+                        onRatingUpdate: (r) {
+                          rating = r;
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      CustomTextField(
+                        controller: commentController,
+                        label: 'Share your experience...',
+                        prefixIcon: Icons.edit_note_rounded,
+                        maxLines: 4,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a comment' : null,
+                      ),
+                      const SizedBox(height: 24),
+                      isSubmitting 
+                          ? const CircularProgressIndicator()
+                          : ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: () async {
+                                if (!formKey.currentState!.validate()) return;
+                                setModalState(() => isSubmitting = true);
+                                try {
+                                  if (existingReview != null) {
+                                    await _reviewService.updateReview(
+                                      token: auth.accessToken!,
+                                      reviewId: existingReview['_id'],
+                                      rating: rating,
+                                      comment: commentController.text.trim(),
+                                    );
+                                  } else {
+                                    await _reviewService.addReview(
+                                      token: auth.accessToken!,
+                                      destinationId: widget.destination['_id'],
+                                      rating: rating,
+                                      comment: commentController.text.trim(),
+                                    );
+                                  }
+                                  Navigator.pop(context);
+                                  _fetchReviews();
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+                                } finally {
+                                  setModalState(() => isSubmitting = false);
+                                }
+                              },
+                              child: Text(existingReview != null ? 'Update Review' : 'Post Review'),
+                            ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteReview(String reviewId) async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    try {
+      await _reviewService.deleteReview(token: auth.accessToken!, reviewId: reviewId);
+      _fetchReviews();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting: '), backgroundColor: Colors.red));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dest = widget.destination;
+    final auth = Provider.of<AuthProvider>(context);
+    final myUserId = auth.user != null ? auth.user!['id'] : null;
 
     final imageList = (dest['images'] is List && (dest['images'] as List).isNotEmpty)
         ? (dest['images'] as List)
@@ -346,7 +512,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                             Icon(Icons.location_on_rounded, color: theme.colorScheme.primary, size: 16),
                             const SizedBox(width: 4),
                             Text(
-                              '${dest['city'] ?? ''}, ${dest['country'] ?? ''}',
+                              '\, ',
                               style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                             ),
                           ],
@@ -387,7 +553,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          (dest['rating'] ?? '4.8').toString(),
+                          _currentAvgRating.toStringAsFixed(1),
                           style: theme.textTheme.headlineMedium?.copyWith(
                             color: theme.colorScheme.onPrimary,
                             fontWeight: FontWeight.bold,
@@ -399,19 +565,16 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: List.generate(
-                                5,
-                                (index) => Icon(
-                                  Icons.star_rounded,
-                                  color: index < (dest['rating'] ?? 4.8).floor() ? Colors.amber : Colors.grey[400],
-                                  size: 20,
-                                ),
-                              ),
+                            RatingBarIndicator(
+                              rating: _currentAvgRating,
+                              itemBuilder: (context, index) => const Icon(Icons.star_rounded, color: Colors.amber),
+                              itemCount: 5,
+                              itemSize: 20.0,
+                              direction: Axis.horizontal,
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Based on ${142 + (dest['name'] ?? '').length} certified explorer reviews',
+                              'Based on \ certified explorer reviews',
                               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                             ),
                           ],
@@ -449,16 +612,14 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                   child: Container(
                     height: 180,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.2),
+                      color: theme.colorScheme.secondaryContainer.withOpacity(0.2),
                     ),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        // Stylized Map Drawing Grid
                         CustomPaint(
-                          painter: MapPainter(color: theme.colorScheme.primary.withValues(alpha: 0.15)),
+                          painter: MapPainter(color: theme.colorScheme.primary.withOpacity(0.15)),
                         ),
-                        // Target Map Marker with Ripple Rings
                         Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -472,18 +633,17 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.7),
+                                  color: Colors.black.withOpacity(0.7),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  'Lat: ${dest['latitude'] ?? 0.0}, Lng: ${dest['longitude'] ?? 0.0}',
+                                  'Lat: \, Lng: ',
                                   style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        // Open In Google Maps Button
                         Positioned(
                           bottom: 12,
                           right: 12,
@@ -503,79 +663,114 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
               const SizedBox(height: 24),
 
               // 5. REVIEWS LIST SECTION
-              Text(
-                'Explorer Reviews',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Explorer Reviews',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _showReviewBottomSheet(context),
+                    icon: const Icon(Icons.rate_review_rounded, size: 18),
+                    label: const Text('Write Review'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _mockReviews.length,
-                itemBuilder: (context, index) {
-                  final review = _mockReviews[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    elevation: 0,
-                    color: theme.colorScheme.surfaceContainerLow,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundImage: NetworkImage(review['avatar']!),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      review['author']!,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                    ),
-                                    Text(
-                                      review['date']!,
-                                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
-                                    ),
-                                  ],
+              const SizedBox(height: 8),
+              if (_isLoadingReviews)
+                const Center(child: CircularProgressIndicator())
+              else if (_reviews.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('No reviews yet. Be the first to review this destination!'),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _reviews.length,
+                  itemBuilder: (context, index) {
+                    final review = _reviews[index];
+                    final user = review['user'];
+                    final bool isMyReview = myUserId != null && user != null && user['_id'] == myUserId;
+                    
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 0,
+                      color: theme.colorScheme.surfaceContainerLow,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundImage: user != null && user['profileImage'] != null
+                                      ? NetworkImage(user['profileImage'])
+                                      : null,
+                                  child: user == null || user['profileImage'] == null
+                                      ? Text(user?['name']?[0]?.toUpperCase() ?? '?')
+                                      : null,
                                 ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        user?['name'] ?? 'Unknown User',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                      Text(
+                                        review['createdAt']?.substring(0, 10) ?? '',
+                                        style: theme.textTheme.bodySmall?.copyWith(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.star_rounded, color: Colors.amber, size: 12),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      review['rating']!,
-                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            review['comment']!,
-                            style: theme.textTheme.bodyMedium?.copyWith(height: 1.3),
-                          ),
-                        ],
+                                if (isMyReview)
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_rounded, size: 18, color: Colors.blue),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _showReviewBottomSheet(context, existingReview: review),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.red),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _deleteReview(review['_id']),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            RatingBarIndicator(
+                              rating: (review['rating'] as num).toDouble(),
+                              itemBuilder: (context, index) => const Icon(Icons.star_rounded, color: Colors.amber),
+                              itemCount: 5,
+                              itemSize: 16.0,
+                              direction: Axis.horizontal,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              review['comment'] ?? '',
+                              style: theme.textTheme.bodyMedium?.copyWith(height: 1.3),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
               const SizedBox(height: 36),
             ],
           ),
@@ -588,7 +783,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
           color: theme.colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, -4),
             )
@@ -615,35 +810,26 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
 // Custom Painter to draw stylized map streets / water lines
 class MapPainter extends CustomPainter {
   final Color color;
-
   MapPainter({required this.color});
-
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
       ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke;
-
-    // Draw some stylized diagonal roads / lines
     canvas.drawLine(Offset(0, size.height * 0.2), Offset(size.width, size.height * 0.8), paint);
     canvas.drawLine(Offset(size.width * 0.2, 0), Offset(size.width * 0.7, size.height), paint);
     canvas.drawLine(Offset(size.width * 0.5, 0), Offset(0, size.height * 0.5), paint);
-    
-    // Draw a curvy blue-like river line
     final riverPaint = Paint()
-      ..color = Colors.blue.withValues(alpha: 0.15)
+      ..color = Colors.blue.withOpacity(0.15)
       ..strokeWidth = 14.0
       ..style = PaintingStyle.stroke;
-
     final path = Path()
       ..moveTo(0, size.height * 0.9)
       ..quadraticBezierTo(size.width * 0.3, size.height * 0.5, size.width * 0.6, size.height * 0.7)
       ..quadraticBezierTo(size.width * 0.8, size.height * 0.9, size.width, size.height * 0.3);
-    
     canvas.drawPath(path, riverPaint);
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

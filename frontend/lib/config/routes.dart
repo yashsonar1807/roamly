@@ -6,6 +6,7 @@ import '../screens/register_screen.dart';
 import '../screens/forgot_password_screen.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/destination_detail_screen.dart';
+import '../screens/upload_post_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -16,6 +17,7 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String home = '/home';
   static const String destinationDetail = '/destination-detail';
+  static const String uploadPost = '/upload-post';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -43,6 +45,10 @@ class AppRoutes {
         final destination = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
           builder: (_) => DestinationDetailScreen(destination: destination),
+        );
+      case uploadPost:
+        return MaterialPageRoute(
+          builder: (_) => const UploadPostScreen(),
         );
       default:
         return MaterialPageRoute(
