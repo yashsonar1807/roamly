@@ -110,24 +110,11 @@ class _HomeViewState extends State<HomeView> {
                         _buildHeroBanner(context, authProvider),
                         const SizedBox(height: 16),
 
-                        // 2. TRAVEL SEARCH DOCK
-                        TravelSearchDock(
-                          onSearch: (query, category) {
-                            final destProvider = Provider.of<DestinationProvider>(context, listen: false);
-                            if (query.isNotEmpty) destProvider.setSearchQuery(query);
-                            if (category != 'All') destProvider.setSelectedCategory(category);
-                            widget.onExploreTap?.call();
-                          },
-                        ),
-                        const SizedBox(height: 18),
-
-                        // 3. STORIES REEL (HORIZONTAL SCROLL)
+                        // 2. STORIES REEL (HORIZONTAL SCROLL)
                         _buildStoriesSection(context, storyProvider, authProvider),
                         const SizedBox(height: 18),
 
-                        // 3. CATEGORY PILLS BAR
-                        _buildCategoryFilterBar(context),
-                        const SizedBox(height: 16),
+                        // 3. FEED POSTS LIST
 
                         // 4. FEED POSTS LIST
                         if (postProvider.isLoading && postProvider.posts.isEmpty)
