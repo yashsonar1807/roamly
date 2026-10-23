@@ -79,22 +79,33 @@ class _TripsViewState extends State<TripsView> {
     final tripProvider = Provider.of<TripProvider>(context);
     final dateFormat = DateFormat('MMM dd, yyyy');
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 860),
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 16.0 : 24.0,
+          vertical: isMobile ? 14.0 : 24.0,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'My Travel Itineraries & Journeys',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  'My Travel Itineraries & Journeys',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -102,6 +113,7 @@ class _TripsViewState extends State<TripsView> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.flight_takeoff_rounded, size: 14, color: theme.colorScheme.primary),
                     const SizedBox(width: 4),
@@ -159,6 +171,7 @@ class _TripsViewState extends State<TripsView> {
                     ),
                   )
                 : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 96),
                     itemCount: tripProvider.trips.length,
                     itemBuilder: (context, index) {
                       final trip = tripProvider.trips[index];
@@ -190,8 +203,11 @@ class _TripsViewState extends State<TripsView> {
                                     child: Text(
                                       trip['title'] ?? '',
                                       style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
@@ -211,7 +227,14 @@ class _TripsViewState extends State<TripsView> {
                                 children: [
                                   const Icon(Icons.pin_drop_rounded, size: 16, color: Colors.grey),
                                   const SizedBox(width: 4),
-                                  Text(trip['destination'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  Expanded(
+                                    child: Text(
+                                      trip['destination'] ?? '',
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 4),
@@ -219,7 +242,14 @@ class _TripsViewState extends State<TripsView> {
                                 children: [
                                   const Icon(Icons.calendar_month_rounded, size: 16, color: Colors.grey),
                                   const SizedBox(width: 4),
-                                  Text(dateRangeStr, style: const TextStyle(fontSize: 13)),
+                                  Expanded(
+                                    child: Text(
+                                      dateRangeStr,
+                                      style: const TextStyle(fontSize: 13),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -262,33 +292,39 @@ class _TripsViewState extends State<TripsView> {
                                 ),
                               ],
                               const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  if (trip['status'] == 'Completed')
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Wrap(
+                                  alignment: WrapAlignment.end,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 4,
+                                  runSpacing: 4,
+                                  children: [
+                                    if (trip['status'] == 'Completed')
+                                      TextButton.icon(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => ShareJourneyScreen(trip: trip),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.share_rounded, size: 18, color: Colors.blue),
+                                        label: const Text('Share Journey', style: TextStyle(color: Colors.blue)),
+                                      ),
                                     TextButton.icon(
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => ShareJourneyScreen(trip: trip),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.share_rounded, size: 18, color: Colors.blue),
-                                      label: const Text('Share Journey', style: TextStyle(color: Colors.blue)),
+                                      onPressed: () => _showEditDialog(context, trip),
+                                      icon: const Icon(Icons.edit_rounded, size: 18),
+                                      label: const Text('Edit'),
                                     ),
-                                  TextButton.icon(
-                                    onPressed: () => _showEditDialog(context, trip),
-                                    icon: const Icon(Icons.edit_rounded, size: 18),
-                                    label: const Text('Edit'),
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: () => _confirmDelete(context, trip['_id'], trip['title']),
-                                    icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.red),
-                                    label: const Text('Delete', style: TextStyle(color: Colors.red)),
-                                  ),
-                                ],
+                                    TextButton.icon(
+                                      onPressed: () => _confirmDelete(context, trip['_id'], trip['title']),
+                                      icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.red),
+                                      label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),

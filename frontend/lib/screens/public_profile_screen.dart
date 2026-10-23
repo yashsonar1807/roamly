@@ -88,7 +88,10 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           children: [
           // Modern Profile Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width < 600 ? 16.0 : 24.0,
+              vertical: MediaQuery.of(context).size.width < 600 ? 14.0 : 20.0,
+            ),
             color: theme.scaffoldBackgroundColor,
             child: Column(
               children: [
@@ -97,7 +100,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(3),
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: AppColors.storyGradient,
@@ -109,7 +112,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           color: theme.scaffoldBackgroundColor,
                         ),
                         child: CircleAvatar(
-                          radius: 42,
+                          radius: MediaQuery.of(context).size.width < 600 ? 36 : 42,
                           backgroundColor: theme.colorScheme.primaryContainer,
                           backgroundImage: _profile!['profileImage'] != null && _profile!['profileImage'].toString().isNotEmpty
                               ? CachedNetworkImageProvider(_profile!['profileImage'])
@@ -117,20 +120,24 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           child: _profile!['profileImage'] == null || _profile!['profileImage'].toString().isEmpty
                               ? Text(
                                   (_profile!['name'] ?? 'U')[0].toUpperCase(),
-                                  style: TextStyle(fontSize: 32, color: theme.colorScheme.onPrimaryContainer),
+                                  style: TextStyle(
+                                    fontSize: MediaQuery.of(context).size.width < 600 ? 26 : 32,
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                  ),
                                 )
                               : null,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 24),
+                    SizedBox(width: MediaQuery.of(context).size.width < 600 ? 12 : 24),
                     Expanded(
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildStatItem('Posts', _profile!['postsCount'] ?? _userPosts.length, theme),
-                          _buildStatItem('Followers', _profile!['followersCount'] ?? 0, theme),
-                          _buildStatItem('Following', _profile!['followingCount'] ?? 0, theme),
+                          Expanded(child: _buildStatItem('Posts', _profile!['postsCount'] ?? _userPosts.length, theme)),
+                          SizedBox(width: MediaQuery.of(context).size.width < 600 ? 6 : 10),
+                          Expanded(child: _buildStatItem('Followers', _profile!['followersCount'] ?? 0, theme)),
+                          SizedBox(width: MediaQuery.of(context).size.width < 600 ? 6 : 10),
+                          Expanded(child: _buildStatItem('Following', _profile!['followingCount'] ?? 0, theme)),
                         ],
                       ),
                     ),
@@ -139,13 +146,15 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Row(
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
                     children: [
                       Text(
                         _profile!['name'] ?? '',
                         style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -229,13 +238,19 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Widget _buildStatItem(String label, int count, ThemeData theme) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 4 : 16,
+        vertical: isMobile ? 10 : 16,
+      ),
       decoration: BoxDecoration(
         color: theme.brightness == Brightness.dark 
             ? const Color(0xFF1E293B).withValues(alpha: 0.6)
             : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isMobile ? 14 : 24),
         border: Border.all(
           color: theme.brightness == Brightness.dark 
               ? Colors.white.withValues(alpha: 0.05)
@@ -250,21 +265,29 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            count.toString(),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold, 
-              fontSize: 20,
-              color: theme.colorScheme.primary,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              count.toString(),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold, 
+                fontSize: isMobile ? 16 : 20,
+                color: theme.colorScheme.primary,
+              ),
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isMobile ? 11 : 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
