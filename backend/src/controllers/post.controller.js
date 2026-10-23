@@ -16,21 +16,21 @@ const getPosts = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const total = await Post.countDocuments();
-    const posts = await Post.find()
-      .populate('user', 'name username avatar')
+    const posts = await Post.find().lean()
+      .populate('user', 'name username profileImage avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     // Format output with compatibility fallbacks for seeded assets
     const formattedPosts = posts.map((post) => {
-      const p = post.toObject();
+      const p = post;
       return {
         _id: p._id,
         user: p.user ? p.user._id : null,
         authorName: p.user ? p.user.name : (p.authorName || 'Anonymous'),
         authorRole: p.user ? 'Explorer' : (p.authorRole || 'Explorer'),
-        authorAvatar: p.user ? p.user.avatar : (p.authorAvatar || ''),
+        authorAvatar: p.user ? (p.user.profileImage || p.user.avatar || '') : (p.authorAvatar || ''),
         title: p.title || '',
         description: p.description || p.caption || '',
         caption: p.caption || p.description || '',
@@ -71,18 +71,18 @@ const getPosts = async (req, res, next) => {
  */
 const getPostById = async (req, res, next) => {
   try {
-    const post = await Post.findById(req.params.id).populate('user', 'name username avatar');
+    const post = await Post.findById(req.params.id).populate('user', 'name username profileImage avatar');
     if (!post) {
       return res.status(404).json({ status: 'error', message: 'Post not found' });
     }
 
-    const p = post.toObject();
+    const p = post;
     const formatted = {
       _id: p._id,
       user: p.user ? p.user._id : null,
       authorName: p.user ? p.user.name : (p.authorName || 'Anonymous'),
       authorRole: p.user ? 'Explorer' : (p.authorRole || 'Explorer'),
-      authorAvatar: p.user ? p.user.avatar : (p.authorAvatar || ''),
+      authorAvatar: p.user ? (p.user.profileImage || p.user.avatar || '') : (p.authorAvatar || ''),
       title: p.title || '',
       description: p.description || p.caption || '',
       caption: p.caption || p.description || '',
@@ -288,7 +288,9 @@ const toggleLikePost = async (req, res, next) => {
       return res.status(404).json({ status: 'error', message: 'Post not found' });
     }
 
-    const likeIndex = post.likes.indexOf(req.user._id);
+    const likeIndex = post.likes.findIndex(
+      (id) => id.toString() === req.user._id.toString()
+    );
 
     if (likeIndex > -1) {
       // User has already liked, unlike it
@@ -298,12 +300,13 @@ const toggleLikePost = async (req, res, next) => {
       post.likes.push(req.user._id);
     }
 
+    post.likesCount = post.likes.length;
     await post.save();
 
     res.status(200).json({
       status: 'success',
       likesCount: post.likesCount,
-      isLiked: post.likes.includes(req.user._id),
+      isLiked: likeIndex === -1,
     });
   } catch (error) {
     next(error);

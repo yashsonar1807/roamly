@@ -254,6 +254,30 @@ const seedDatabase = async () => {
         password: 'password123',
         profileImage: 'https://i.pravatar.cc/150?img=22',
         bio: 'Vagabond'
+      },
+      {
+        name: 'John Doe',
+        username: 'johndoe',
+        email: 'john@demo.com',
+        password: 'password123',
+        profileImage: 'https://i.pravatar.cc/150?img=11',
+        bio: 'Adventurer'
+      },
+      {
+        name: 'Jane Smith',
+        username: 'janesmith',
+        email: 'jane@demo.com',
+        password: 'password123',
+        profileImage: 'https://i.pravatar.cc/150?img=12',
+        bio: 'Globetrotter'
+      },
+      {
+        name: 'Alex Johnson',
+        username: 'alex_j',
+        email: 'alex@demo.com',
+        password: 'password123',
+        profileImage: 'https://i.pravatar.cc/150?img=13',
+        bio: 'Foodie & Traveler'
       }
     ];
 
@@ -313,8 +337,9 @@ const seedDatabase = async () => {
         authorRole: demoUsers[5].bio,
         authorAvatar: demoUsers[5].profileImage,
         title: 'Watching sunrise in Varanasi 🌅',
-        description: 'Witnessed the spiritual Ganga Aarti at sunrise. There is an inexplicable tranquility in the air of Varanasi that everyone must experience at least once.',
-        image: 'https://picsum.photos/seed/roamly23/600/400',
+        caption: 'Witnessed the spiritual Ganga Aarti at sunrise. There is an inexplicable tranquility in the air of Varanasi that everyone must experience at least once.',
+        mediaUrl: 'https://picsum.photos/seed/roamly23/600/400',
+        mediaType: 'image',
         likesCount: 1200,
         commentsCount: 45,
       },
@@ -324,10 +349,47 @@ const seedDatabase = async () => {
         authorRole: demoUsers[6].bio,
         authorAvatar: demoUsers[6].profileImage,
         title: 'Chasing waves in South Goa 🌊',
-        description: 'Spent the day exploring isolated beaches in Palolem. White sands, clear water, and fresh coconut water. Truly paradise!',
-        image: 'https://picsum.photos/seed/roamly24/600/400',
+        caption: 'Spent the day exploring isolated beaches in Palolem. White sands, clear water, and fresh coconut water. Truly paradise!',
+        mediaUrl: 'https://picsum.photos/seed/roamly24/600/400',
+        mediaType: 'image',
         likesCount: 890,
         commentsCount: 23,
+      },
+      {
+        user: demoUsers[7]._id, // John
+        authorName: demoUsers[7].name,
+        authorRole: demoUsers[7].bio,
+        authorAvatar: demoUsers[7].profileImage,
+        title: 'Majestic Taj Mahal ✨',
+        caption: 'Finally visited this breathtaking wonder of the world. The marble architecture is absolutely mesmerizing in person!',
+        mediaUrl: 'https://picsum.photos/seed/roamly25/600/400',
+        mediaType: 'image',
+        likesCount: 2300,
+        commentsCount: 154,
+      },
+      {
+        user: demoUsers[8]._id, // Jane
+        authorName: demoUsers[8].name,
+        authorRole: demoUsers[8].bio,
+        authorAvatar: demoUsers[8].profileImage,
+        title: 'Himalayan Retreat 🏔️',
+        caption: 'Found peace in the snow-capped mountains of Manali. Highly recommend disconnecting from the digital world for a bit.',
+        mediaUrl: 'https://picsum.photos/seed/roamly26/600/400',
+        mediaType: 'image',
+        likesCount: 1450,
+        commentsCount: 89,
+      },
+      {
+        user: demoUsers[9]._id, // Alex
+        authorName: demoUsers[9].name,
+        authorRole: demoUsers[9].bio,
+        authorAvatar: demoUsers[9].profileImage,
+        title: 'Kerala Backwaters 🛶',
+        caption: 'Sailing through the tranquil backwaters of Alleppey. The palm trees and quiet nature are a perfect escape.',
+        mediaUrl: 'https://picsum.photos/seed/roamly27/600/400',
+        mediaType: 'image',
+        likesCount: 760,
+        commentsCount: 12,
       },
     ];
     await Post.insertMany(posts);

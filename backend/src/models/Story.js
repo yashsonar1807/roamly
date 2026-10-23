@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const storySchema = new mongoose.Schema(
   {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
     userName: {
       type: String,
       required: [true, 'User name is required for a story'],
@@ -17,6 +21,9 @@ const storySchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+storySchema.index({ user: 1 });
+storySchema.index({ createdAt: -1 });
 
 const Story = mongoose.model('Story', storySchema);
 

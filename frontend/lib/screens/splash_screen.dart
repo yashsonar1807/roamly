@@ -67,23 +67,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             children: [
               // Roamly Primary Logo
               Container(
-                width: 200,
-                height: 200,
+                width: 250,
+                height: 250,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    )
-                  ],
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(32),
+                child: Center(
                   child: Image.asset(
-                    'assets/images/logo_primary.jpg',
-                    fit: BoxFit.cover,
+                    theme.brightness == Brightness.dark
+                        ? 'assets/images/logo_dark_v3.png'
+                        : 'assets/images/logo_light_v3.png',
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),

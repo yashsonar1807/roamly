@@ -1,16 +1,15 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/post_provider.dart';
 import '../providers/auth_provider.dart';
 
 class UploadPostScreen extends StatefulWidget {
-  const UploadPostScreen({Key? key}) : super(key: key);
+  const UploadPostScreen({super.key});
 
   @override
-  _UploadPostScreenState createState() => _UploadPostScreenState();
+  State<UploadPostScreen> createState() => _UploadPostScreenState();
 }
 
 class _UploadPostScreenState extends State<UploadPostScreen> {
@@ -18,6 +17,7 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
   final TextEditingController _locationController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   XFile? _selectedFile;
+  Uint8List? _selectedBytes;
   bool _isVideo = false;
 
   Future<void> _pickMedia(bool isVideo) async {
@@ -26,8 +26,10 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
         : await _picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
         _selectedFile = pickedFile;
+        _selectedBytes = bytes;
         _isVideo = isVideo;
       });
     }
@@ -36,6 +38,7 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
   void _removeMedia() {
     setState(() {
       _selectedFile = null;
+      _selectedBytes = null;
     });
   }
 
@@ -57,7 +60,7 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
       return;
     }
 
-    final bytes = await _selectedFile!.readAsBytes();
+    final bytes = _selectedBytes ?? await _selectedFile!.readAsBytes();
     
     await postProvider.createPost(
       token: authProvider.accessToken!,
@@ -127,10 +130,10 @@ class _UploadPostScreenState extends State<UploadPostScreen> {
                           width: double.infinity,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            image: _isVideo
-                                ? null // Consider adding video thumbnail later
+                            image: _isVideo || _selectedBytes == null
+                                ? null
                                 : DecorationImage(
-                                    image: kIsWeb ? NetworkImage(_selectedFile!.path) as ImageProvider : FileImage(File(_selectedFile!.path)),
+                                    image: MemoryImage(_selectedBytes!),
                                     fit: BoxFit.cover,
                                   ),
                             color: Colors.grey[200],

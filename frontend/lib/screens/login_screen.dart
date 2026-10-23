@@ -63,13 +63,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 20),
                         // Logo
                         Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.asset(
-                              'assets/images/logo_primary.jpg',
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
+                          child: Image.asset(
+                            Theme.of(context).brightness == Brightness.dark
+                                ? 'assets/images/logo_dark_v3.png'
+                                : 'assets/images/logo_light_v3.png',
+                            height: 100,
+                            fit: BoxFit.contain,
                           ),
                         ),
                         const SizedBox(height: 24),

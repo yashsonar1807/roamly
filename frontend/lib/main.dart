@@ -10,6 +10,9 @@ import 'providers/trip_provider.dart';
 import 'providers/story_provider.dart';
 import 'providers/post_provider.dart';
 import 'providers/user_provider.dart';
+import 'providers/notification_provider.dart';
+import 'providers/theme_provider.dart';
+import 'providers/journey_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,20 +32,27 @@ class RoamlyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => StoryProvider()),
         ChangeNotifierProvider(create: (_) => PostProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => JourneyProvider()),
       ],
       child: ScreenUtilInit(
         designSize: const Size(375, 812),
         minTextAdapt: true,
         splitScreenMode: true,
         builder: (context, child) {
-          return MaterialApp(
-            title: 'Roamly',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: ThemeMode.light,
-            initialRoute: AppRoutes.splash,
-            onGenerateRoute: AppRoutes.onGenerateRoute,
+          return Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return MaterialApp(
+                title: 'Roamly',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                themeMode: themeProvider.themeMode,
+                initialRoute: AppRoutes.splash,
+                onGenerateRoute: AppRoutes.onGenerateRoute,
+              );
+            },
           );
         },
       ),

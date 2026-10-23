@@ -79,6 +79,19 @@ const userSchema = new mongoose.Schema(
         ref: 'Destination',
       },
     ],
+    travelPoints: {
+      type: Number,
+      default: 0,
+    },
+    completedTrips: {
+      type: Number,
+      default: 0,
+    },
+    rank: {
+      type: String,
+      enum: ['Explorer', 'Wanderer', 'Pathfinder', 'Adventurer', 'Globetrotter', 'World Traveler', 'Travel Legend'],
+      default: 'Explorer',
+    },
   },
   {
     timestamps: true, // Automatically manages createdAt and updatedAt
@@ -105,6 +118,8 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+userSchema.index({ name: 'text', username: 'text' });
 
 const User = mongoose.model('User', userSchema);
 

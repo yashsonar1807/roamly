@@ -65,7 +65,7 @@ class _CreateViewState extends State<CreateView> {
       onSuccess: () {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Trip logged to MongoDB successfully!'),
+            content: Text('Trip added to your itineraries successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -128,7 +128,7 @@ class _CreateViewState extends State<CreateView> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Log a New Trip',
+                  'Plan a New Adventure',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -136,7 +136,7 @@ class _CreateViewState extends State<CreateView> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Write travel logs directly to the MongoDB backend database.',
+                  'Organize your next journey with dates, budget, hotel, and packing notes.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -230,7 +230,7 @@ class _CreateViewState extends State<CreateView> {
                 
                 // Status Dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedStatus,
+                  initialValue: _selectedStatus,
                   decoration: InputDecoration(
                     labelText: 'Trip Status',
                     prefixIcon: const Icon(Icons.flag_rounded),
@@ -263,8 +263,8 @@ class _CreateViewState extends State<CreateView> {
                     ? const Center(child: CircularProgressIndicator())
                     : ElevatedButton.icon(
                         onPressed: _submitForm,
-                        icon: const Icon(Icons.cloud_upload_rounded),
-                        label: const Text('Save to Cloud DB'),
+                        icon: const Icon(Icons.bookmark_added_rounded),
+                        label: const Text('Save Trip Itinerary'),
                       ),
               ],
             ),

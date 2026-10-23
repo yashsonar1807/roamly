@@ -1,14 +1,12 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+
+import '../config/api_config.dart';
 
 class AuthService {
   late final Dio _dio;
 
-  // Base URL auto-detect: use 10.0.2.2 for Android emulator loopback, localhost for web/desktop/iOS
-  static final String apiBaseUrl = !kIsWeb && Platform.isAndroid
-      ? 'http://10.0.2.2:5000/api/v1/auth'
-      : 'http://localhost:5000/api/v1/auth';
+  static final String apiBaseUrl = '${ApiConfig.baseUrl}/auth';
 
   AuthService() {
     _dio = Dio(

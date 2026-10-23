@@ -59,10 +59,21 @@ class UserService {
   Future<List<dynamic>> searchUsers(String query) async {
     try {
       final response = await _dio.get('/search', queryParameters: {'q': query});
-      if (response.data['status'] == 'success') {
+      if (response.data['success'] == true) {
+        return response.data['users'] as List<dynamic>;
+      } else if (response.data['status'] == 'success') {
         return response.data['data']['users'] as List<dynamic>;
       }
       return [];
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> toggleFollowUser(String token, String targetUserId) async {
+    try {
+      final response = await _dio.post('/$targetUserId/follow', options: Options(headers: {'Authorization': 'Bearer $token'}));
+      return response.data;
     } on DioException catch (e) {
       throw _handleError(e);
     }

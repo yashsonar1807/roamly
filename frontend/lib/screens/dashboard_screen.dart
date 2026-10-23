@@ -1,17 +1,18 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../config/routes.dart';
+import '../config/colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/destination_provider.dart';
-import '../providers/trip_provider.dart';
 import '../providers/user_provider.dart';
-import '../utils/responsive.dart';
-import '../widgets/custom_text_field.dart';
+import '../providers/theme_provider.dart';
+import '../providers/notification_provider.dart';
 import 'home_view.dart';
 import 'create_view.dart';
 import 'trips_view.dart';
 import 'profile_view.dart';
-
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -22,14 +23,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
-
-  final List<String> _titles = [
-    'Home',
-    'Explore',
-    'Create',
-    'Trips',
-    'Profile',
-  ];
 
   void _switchToTripsTab() {
     setState(() {
@@ -45,8 +38,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDesktop = context.isDesktop;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktopWeb = screenWidth >= 900;
 
     final List<Widget> views = [
       HomeView(
@@ -63,149 +56,457 @@ class _DashboardScreenState extends State<DashboardScreen> {
       const ProfileView(),
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: _selectedIndex == 0
-            ? Image.asset(
-                Theme.of(context).brightness == Brightness.dark
-                    ? 'assets/images/logo_dark.png'
-                    : 'assets/images/logo_light.png',
-                height: 32,
-              )
-            : Text(_titles[_selectedIndex]),
-        elevation: 0,
-        actions: _selectedIndex == 4
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded),
-                  onPressed: () async {
-                    final auth = Provider.of<AuthProvider>(
-                      context,
-                      listen: false,
-                    );
-                    await auth.logout();
-                    if (context.mounted) {
-                      Navigator.pushReplacementNamed(context, '/login');
-                    }
-                  },
+    if (isDesktopWeb) {
+      // ─── DESKTOP WEB LAYOUT WITH FULL TOP NAVBAR ───
+      return Scaffold(
+        body: Column(
+          children: [
+            _buildWebTopNav(context),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                child: KeyedSubtree(
+                  key: ValueKey<int>(_selectedIndex),
+                  child: views[_selectedIndex],
                 ),
-              ]
-            : null,
-      ),
-      body: Row(
-        children: [
-          // Navigation Rail for Desktop/Tablet landscape
-          if (isDesktop)
-            NavigationRail(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (int index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
-              },
-              labelType: NavigationRailLabelType.all,
-              indicatorColor: theme.colorScheme.primaryContainer,
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: Text('Home'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.explore_outlined),
-                  selectedIcon: Icon(Icons.explore_rounded),
-                  label: Text('Explore'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.add_circle_outline_rounded),
-                  selectedIcon: Icon(Icons.add_circle_rounded),
-                  label: Text('Create'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.card_travel_outlined),
-                  selectedIcon: Icon(Icons.card_travel_rounded),
-                  label: Text('Trips'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.person_outline_rounded),
-                  selectedIcon: Icon(Icons.person_rounded),
-                  label: Text('Profile'),
-                ),
-              ],
-            ),
-
-          // Viewport container with sliding page switch animation
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0.0, 0.05),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey<int>(_selectedIndex),
-                child: views[_selectedIndex],
               ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ─── MOBILE & TABLET WEB LAYOUT WITH LUMINOUS TRAVEL DOCK ───
+    return Scaffold(
+      extendBody: true,
+      appBar: _buildMobileTopNav(context),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        child: KeyedSubtree(
+          key: ValueKey<int>(_selectedIndex),
+          child: views[_selectedIndex],
+        ),
+      ),
+      bottomNavigationBar: _buildLuminousBottomDock(context),
+    );
+  }
+
+  PreferredSizeWidget _buildMobileTopNav(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final notificationProvider = Provider.of<NotificationProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+    final userName = user?['name'] ?? 'Traveler';
+    final userAvatar = user?['profileImage'] ??
+        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=0EA5E9&color=fff';
+
+    return AppBar(
+      elevation: 0,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      titleSpacing: 14,
+      title: Row(
+        children: [
+          Image.asset(
+            isDark ? 'assets/images/logo_dark_v3.png' : 'assets/images/logo_light_v3.png',
+            height: 34,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'ROAMLY',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              gradient: AppColors.rankGradient,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'WEB',
+              style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: !isDesktop
-          ? Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
+      actions: [
+        IconButton(
+          tooltip: 'Search Places',
+          icon: const Icon(Icons.search_rounded, size: 22),
+          onPressed: () {
+            setState(() => _selectedIndex = 1);
+          },
+        ),
+        IconButton(
+          tooltip: 'Switch Theme',
+          icon: Icon(
+            themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            color: themeProvider.isDarkMode ? Colors.amber : null,
+            size: 20,
+          ),
+          onPressed: () {
+            themeProvider.toggleTheme(!themeProvider.isDarkMode);
+          },
+        ),
+        IconButton(
+          tooltip: 'Notifications',
+          icon: Badge(
+            isLabelVisible: notificationProvider.unreadCount > 0,
+            label: Text('${notificationProvider.unreadCount}'),
+            child: const Icon(Icons.notifications_outlined, size: 21),
+          ),
+          onPressed: () {
+            Navigator.pushNamed(context, AppRoutes.notifications);
+          },
+        ),
+        InkWell(
+          onTap: () => setState(() => _selectedIndex = 4),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 14, left: 4),
+            child: CircleAvatar(
+              radius: 14,
+              backgroundImage: CachedNetworkImageProvider(userAvatar),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWebTopNav(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final authProvider = Provider.of<AuthProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final notificationProvider = Provider.of<NotificationProvider>(context);
+
+    final user = authProvider.user;
+    final userName = user?['name'] ?? 'Traveler';
+    final userAvatar = user?['profileImage'] ??
+        'https://ui-avatars.com/api/?name=${Uri.encodeComponent(userName)}&background=0EA5E9&color=fff';
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final showUserName = screenWidth > 860;
+
+    return Container(
+      height: 68,
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          // BRAND LOGO & TITLE
+          InkWell(
+            onTap: () => setState(() => _selectedIndex = 0),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Row(
+                children: [
+                  Image.asset(
+                    isDark ? 'assets/images/logo_dark_v3.png' : 'assets/images/logo_light_v3.png',
+                    height: 36,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'ROAMLY',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                      fontSize: 17,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.rankGradient,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'WEB',
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
                   ),
                 ],
               ),
-              child: NavigationBar(
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: (int index) {
-                  setState(() {
-                    _selectedIndex = index;
-                  });
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // CENTER NAVIGATION PILLS (FLEXIBLE & SCROLLABLE)
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildWebNavItem(0, Icons.home_rounded, Icons.home_outlined, 'Feed'),
+                    _buildWebNavItem(1, Icons.explore_rounded, Icons.explore_outlined, 'Explore'),
+                    _buildWebNavItem(2, Icons.add_circle_rounded, Icons.add_circle_outline_rounded, 'Create'),
+                    _buildWebNavItem(3, Icons.flight_takeoff_rounded, Icons.card_travel_outlined, 'My Trips'),
+                    _buildWebNavItem(4, Icons.person_rounded, Icons.person_outline_rounded, 'Profile'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // RIGHT ACTIONS
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Theme Switcher
+              IconButton(
+                tooltip: 'Switch to ${themeProvider.isDarkMode ? 'Light' : 'Dark'} Mode',
+                icon: Icon(
+                  themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                  color: themeProvider.isDarkMode ? Colors.amber : null,
+                  size: 20,
+                ),
+                onPressed: () {
+                  themeProvider.toggleTheme(!themeProvider.isDarkMode);
                 },
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home_rounded),
-                    label: 'Home',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.explore_outlined),
-                    selectedIcon: Icon(Icons.explore_rounded),
-                    label: 'Explore',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.add_circle_outline_rounded),
-                    selectedIcon: Icon(Icons.add_circle_rounded),
-                    label: 'Create',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.card_travel_outlined),
-                    selectedIcon: Icon(Icons.card_travel_rounded),
-                    label: 'Trips',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.person_outline_rounded),
-                    selectedIcon: Icon(Icons.person_rounded),
-                    label: 'Profile',
-                  ),
-                ],
               ),
-            )
-          : null,
+
+              // Notifications
+              IconButton(
+                tooltip: 'Notifications',
+                icon: Badge(
+                  isLabelVisible: notificationProvider.unreadCount > 0,
+                  label: Text('${notificationProvider.unreadCount}'),
+                  child: const Icon(Icons.notifications_outlined, size: 21),
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.notifications);
+                },
+              ),
+              const SizedBox(width: 4),
+
+              // User Profile Chip
+              InkWell(
+                onTap: () => setState(() => _selectedIndex = 4),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: showUserName ? 8 : 4,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _selectedIndex == 4 ? AppColors.primary : Colors.transparent,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 13,
+                        backgroundImage: CachedNetworkImageProvider(userAvatar),
+                      ),
+                      if (showUserName) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          userName.toString().split(' ')[0],
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // Settings button
+              IconButton(
+                tooltip: 'Settings',
+                icon: const Icon(Icons.settings_outlined, size: 20),
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.settings);
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebNavItem(int index, IconData selectedIcon, IconData unselectedIcon, String label) {
+    final isSelected = _selectedIndex == index;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: InkWell(
+        onTap: () => setState(() => _selectedIndex = index),
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isSelected ? selectedIcon : unselectedIcon,
+                color: isSelected ? AppColors.primaryDark : (isDark ? Colors.white70 : Colors.black87),
+                size: 19,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? AppColors.primaryDark : (isDark ? Colors.white70 : Colors.black87),
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 13.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLuminousBottomDock(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(left: 14, right: 14, bottom: 12),
+      height: 64,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF131B2E).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildDockItem(0, Icons.home_rounded, Icons.home_outlined, 'Feed'),
+          _buildDockItem(1, Icons.explore_rounded, Icons.explore_outlined, 'Explore'),
+          _buildDockCenterItem(2),
+          _buildDockItem(3, Icons.flight_takeoff_rounded, Icons.flight_takeoff_outlined, 'Trips'),
+          _buildDockItem(4, Icons.person_rounded, Icons.person_outline_rounded, 'Profile'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDockItem(int index, IconData selectedIcon, IconData unselectedIcon, String label) {
+    final isSelected = _selectedIndex == index;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _selectedIndex = index),
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? selectedIcon : unselectedIcon,
+              color: isSelected ? AppColors.primary : (isDark ? Colors.white60 : Colors.black54),
+              size: 22,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? AppColors.primary : (isDark ? Colors.white60 : Colors.black54),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDockCenterItem(int index) {
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: AppColors.rankGradient,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 4),
+            Text(
+              'Plan',
+              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -219,8 +520,9 @@ class _ExploreView extends StatefulWidget {
 }
 
 class _ExploreViewState extends State<_ExploreView> {
-  final TextEditingController _searchController = TextEditingController();
+  final SearchController _searchController = SearchController();
   int _searchTypeIndex = 0; // 0 for Places, 1 for People
+  Timer? _debounce;
 
   final List<Map<String, String>> _categories = [
     {'name': 'All', 'icon': '🌍'},
@@ -250,8 +552,16 @@ class _ExploreViewState extends State<_ExploreView> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _triggerSearch(val);
+    });
   }
 
   void _triggerSearch(String val) {
@@ -304,56 +614,115 @@ class _ExploreViewState extends State<_ExploreView> {
     // Responsive grid cross-axis count calculation
     final width = MediaQuery.of(context).size.width;
     int crossAxisCount = 1;
-    double childAspectRatio = 0.85;
+    double childAspectRatio = 1.05;
 
     if (width > 1200) {
       crossAxisCount = 4;
-      childAspectRatio = 0.8;
-    } else if (width > 800) {
+      childAspectRatio = 0.74;
+    } else if (width > 850) {
       crossAxisCount = 3;
-      childAspectRatio = 0.8;
-    } else if (width > 550) {
+      childAspectRatio = 0.74;
+    } else if (width > 540) {
       crossAxisCount = 2;
-      childAspectRatio = 0.85;
+      childAspectRatio = 0.76;
+    } else {
+      crossAxisCount = 1;
+      childAspectRatio = 1.12;
     }
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               // 1. SEARCH INPUT BAR WITH SUBMIT BUTTON
               Row(
                 children: [
                   Expanded(
-                    child: SearchBar(
-                      controller: _searchController,
-                      leading: const Icon(Icons.search_rounded),
-                      hintText: _searchTypeIndex == 0
-                          ? 'Search destinations...'
-                          : 'Search people...',
-                      elevation: WidgetStateProperty.all(0),
-                      backgroundColor: WidgetStateProperty.all(
-                        theme.colorScheme.surfaceContainerHighest,
-                      ),
-                      shape: WidgetStateProperty.all(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onSubmitted: _triggerSearch,
-                      trailing: [
-                        if (_searchController.text.isNotEmpty)
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded),
-                            onPressed: () {
-                              _searchController.clear();
-                              _triggerSearch('');
-                            },
+                    child: SearchAnchor(
+                      searchController: _searchController,
+                      builder: (BuildContext context, SearchController controller) {
+                        return SearchBar(
+                          controller: controller,
+                          leading: const Icon(Icons.search_rounded),
+                          hintText: _searchTypeIndex == 0
+                              ? 'Search destinations...'
+                              : 'Search people...',
+                          elevation: WidgetStateProperty.all(0),
+                          backgroundColor: WidgetStateProperty.all(
+                            theme.colorScheme.surfaceContainerHighest,
                           ),
-                      ],
+                          shape: WidgetStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          onTap: () {
+                            if (_searchTypeIndex == 1) {
+                              controller.openView();
+                            }
+                          },
+                          onChanged: (val) {
+                            if (_searchTypeIndex == 1) {
+                              controller.openView();
+                            } else {
+                              _onSearchChanged(val);
+                            }
+                          },
+                          onSubmitted: (val) {
+                            if (_searchTypeIndex == 0) {
+                              _triggerSearch(val);
+                            }
+                          },
+                          trailing: [
+                            if (controller.text.isNotEmpty)
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: () {
+                                  controller.clear();
+                                  _triggerSearch('');
+                                },
+                              ),
+                          ],
+                        );
+                      },
+                      suggestionsBuilder: (BuildContext context, SearchController controller) async {
+                        if (_searchTypeIndex == 0 || controller.text.trim().isEmpty) {
+                          return const Iterable<Widget>.empty();
+                        }
+                        final userProvider = Provider.of<UserProvider>(context, listen: false);
+                        final users = await userProvider.searchUsersDirect(controller.text);
+                        
+                        return users.map((user) {
+                          final profileImage = user['profileImage']?.toString() ?? '';
+                          final name = user['name']?.toString() ?? '';
+                          final username = user['username']?.toString() ?? '';
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: profileImage.isNotEmpty
+                                  ? NetworkImage(profileImage)
+                                  : null,
+                              child: profileImage.isEmpty
+                                  ? const Icon(Icons.person)
+                                  : null,
+                            ),
+                            title: Text(name),
+                            subtitle: Text('@$username'),
+                            onTap: () {
+                              controller.closeView(name);
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.publicProfile,
+                                arguments: user['_id'],
+                              );
+                            },
+                          );
+                        });
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -575,160 +944,219 @@ class _ExploreViewState extends State<_ExploreView> {
                                       arguments: dest,
                                     );
                                   },
-                                  child: Card(
-                                    clipBehavior: Clip.antiAlias,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? const Color(0xFF131B2E)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.white.withValues(alpha: 0.08)
+                                            : Colors.black.withValues(alpha: 0.06),
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: Theme.of(context).brightness == Brightness.dark ? 0.25 : 0.05,
+                                          ),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
                                     ),
-                                    elevation: 2,
+                                    clipBehavior: Clip.antiAlias,
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
-                                        // Image section with floating badges
-                                        Expanded(
+                                        // Top Image with Badges
+                                        SizedBox(
+                                          height: 155,
                                           child: Stack(
                                             fit: StackFit.expand,
                                             children: [
                                               Image.network(
                                                 imageUrl,
                                                 fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) => Container(
+                                                  color: Colors.grey[800],
+                                                  child: const Icon(Icons.landscape_rounded, color: Colors.grey),
+                                                ),
                                               ),
-                                              // Rating Badge
+                                              Container(
+                                                decoration: const BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [Color(0x66000000), Color(0x00000000), Color(0x77000000)],
+                                                    begin: Alignment.topCenter,
+                                                    end: Alignment.bottomCenter,
+                                                  ),
+                                                ),
+                                              ),
                                               Positioned(
                                                 top: 10,
                                                 left: 10,
                                                 child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4,
-                                                      ),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(
-                                                    color: Colors.black
-                                                        .withValues(alpha: 0.7),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
+                                                    color: Colors.black.withValues(alpha: 0.75),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                                                   ),
                                                   child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
                                                     children: [
-                                                      const Icon(
-                                                        Icons.star_rounded,
-                                                        color: Colors.amber,
-                                                        size: 14,
-                                                      ),
-                                                      const SizedBox(width: 4),
+                                                      const Icon(Icons.star_rounded, color: Colors.amber, size: 13),
+                                                      const SizedBox(width: 3),
                                                       Text(
-                                                        (dest['rating'] ??
-                                                                '4.8')
-                                                            .toString(),
+                                                        (dest['rating'] ?? '4.8').toString(),
                                                         style: const TextStyle(
                                                           color: Colors.white,
-                                                          fontSize: 10,
-                                                          fontWeight:
-                                                              FontWeight.bold,
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.bold,
                                                         ),
                                                       ),
                                                     ],
                                                   ),
                                                 ),
                                               ),
-                                              // Category Badge
                                               Positioned(
                                                 top: 10,
                                                 right: 10,
                                                 child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4,
-                                                      ),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(
-                                                    color: theme
-                                                        .colorScheme
-                                                        .primary
-                                                        .withValues(alpha: 0.9),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
+                                                    color: AppColors.primary,
+                                                    borderRadius: BorderRadius.circular(10),
                                                   ),
                                                   child: Text(
-                                                    (dest['category'] ??
-                                                            'TRAVEL')
-                                                        .toString()
-                                                        .toUpperCase(),
+                                                    (dest['category'] ?? 'TRAVEL').toString().toUpperCase(),
                                                     style: const TextStyle(
                                                       color: Colors.white,
-                                                      fontSize: 9,
-                                                      fontWeight:
-                                                          FontWeight.bold,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
                                                     ),
+                                                  ),
+                                                ),
+                                              ),
+                                              Positioned(
+                                                bottom: 8,
+                                                left: 10,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.65),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Text('☀️', style: TextStyle(fontSize: 10)),
+                                                      SizedBox(width: 3),
+                                                      Text(
+                                                        '26°C • Perfect Season',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        // Card content details
-                                        Padding(
-                                          padding: const EdgeInsets.all(12.0),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                dest['name'] ?? '',
-                                                style: theme
-                                                    .textTheme
-                                                    .titleMedium
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.location_on_rounded,
-                                                    color: theme
-                                                        .colorScheme
-                                                        .primary,
-                                                    size: 12,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Expanded(
-                                                    child: Text(
-                                                      '${dest['city'] ?? ''}, ${dest['country'] ?? ''}',
-                                                      style: theme
-                                                          .textTheme
-                                                          .bodySmall
-                                                          ?.copyWith(
-                                                            color: theme
-                                                                .colorScheme
-                                                                .onSurfaceVariant,
-                                                          ),
+                                        // Bottom Metadata Section
+                                        Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(12.0),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      dest['name'] ?? '',
+                                                      style: theme.textTheme.titleMedium?.copyWith(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 15,
+                                                      ),
                                                       maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                dest['description'] ?? '',
-                                                style: theme.textTheme.bodySmall
-                                                    ?.copyWith(height: 1.3),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
+                                                    const SizedBox(height: 3),
+                                                    Row(
+                                                      children: [
+                                                        const Icon(
+                                                          Icons.location_on_rounded,
+                                                          color: AppColors.primary,
+                                                          size: 13,
+                                                        ),
+                                                        const SizedBox(width: 3),
+                                                        Expanded(
+                                                          child: Text(
+                                                            '${dest['city'] ?? ''}, ${dest['country'] ?? ''}',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: Theme.of(context).brightness == Brightness.dark
+                                                                  ? Colors.white60
+                                                                  : Colors.black54,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: const Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Icon(Icons.wifi_rounded, size: 11, color: Color(0xFF10B981)),
+                                                          SizedBox(width: 3),
+                                                          Text(
+                                                            '120 Mbps',
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              fontWeight: FontWeight.bold,
+                                                              color: Color(0xFF10B981),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    const Row(
+                                                      children: [
+                                                        Text(
+                                                          'Explore',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: AppColors.primary,
+                                                          ),
+                                                        ),
+                                                        SizedBox(width: 2),
+                                                        Icon(Icons.arrow_forward_rounded, size: 12, color: AppColors.primary),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -776,8 +1204,11 @@ class _ExploreViewState extends State<_ExploreView> {
                               itemCount: userProvider.searchResults.length,
                               separatorBuilder: (context, index) =>
                                   const Divider(height: 1),
-                              itemBuilder: (context, index) {
+                              itemBuilder: (itemCtx, index) {
                                 final user = userProvider.searchResults[index];
+                                final profileImage = user['profileImage']?.toString() ?? '';
+                                final name = user['name']?.toString() ?? '';
+                                final username = user['username']?.toString() ?? '';
                                 return ListTile(
                                   contentPadding: const EdgeInsets.symmetric(
                                     vertical: 8.0,
@@ -786,22 +1217,31 @@ class _ExploreViewState extends State<_ExploreView> {
                                   leading: CircleAvatar(
                                     radius: 24,
                                     backgroundImage:
-                                        user.profileImage.isNotEmpty
-                                        ? NetworkImage(user.profileImage)
+                                        profileImage.isNotEmpty
+                                        ? NetworkImage(profileImage)
                                         : null,
-                                    child: user.profileImage.isEmpty
+                                    child: profileImage.isEmpty
                                         ? const Icon(Icons.person)
                                         : null,
                                   ),
                                   title: Text(
-                                    user.name,
+                                    name,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  subtitle: Text('@${user.username}'),
+                                  subtitle: Text('@$username'),
                                   trailing: OutlinedButton(
-                                    onPressed: () {},
+                                    onPressed: () async {
+                                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      if (auth.accessToken != null) {
+                                        await userProvider.toggleFollow(auth.accessToken!, user['_id'] ?? user['id']);
+                                        messenger.showSnackBar(
+                                          const SnackBar(content: Text('Follow request sent!')),
+                                        );
+                                      }
+                                    },
                                     style: OutlinedButton.styleFrom(
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(20),
@@ -810,7 +1250,11 @@ class _ExploreViewState extends State<_ExploreView> {
                                     child: const Text('Follow'),
                                   ),
                                   onTap: () {
-                                    // Navigate to user profile later
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.publicProfile,
+                                      arguments: user['_id'],
+                                    );
                                   },
                                 );
                               },
@@ -856,7 +1300,8 @@ class _ExploreViewState extends State<_ExploreView> {
                   ],
                 ),
               ],
-            ],
+              ],
+            ),
           ),
         ),
       ),

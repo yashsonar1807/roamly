@@ -1,4 +1,15 @@
 const Trip = require('../models/Trip');
+const User = require('../models/User');
+
+const calculateRank = (points) => {
+  if (points >= 20000) return 'Travel Legend';
+  if (points >= 10000) return 'World Traveler';
+  if (points >= 6000) return 'Globetrotter';
+  if (points >= 3000) return 'Adventurer';
+  if (points >= 1500) return 'Pathfinder';
+  if (points >= 500) return 'Wanderer';
+  return 'Explorer';
+};
 
 /**
  * @desc    Get all trips belonging to the authenticated user
@@ -7,7 +18,7 @@ const Trip = require('../models/Trip');
  */
 const getUserTrips = async (req, res, next) => {
   try {
-    const trips = await Trip.find({ user: req.user._id }).sort({ createdAt: -1 });
+    const trips = await Trip.find({ user: req.user._id }).lean().sort({ createdAt: -1 });
     res.status(200).json({
       status: 'success',
       results: trips.length,
@@ -26,26 +37,29 @@ const getUserTrips = async (req, res, next) => {
  * @access  Private
  */
 const createTrip = async (req, res, next) => {
-  const { title, destination, startDate, endDate, spotsCount, notes, budget, hotel, status } = req.body;
+  let { title, destination, startDate, endDate, spotsCount, notes, budget, hotel, status } = req.body;
 
   try {
-    if (!title || !destination) {
+    if (!title && !destination) {
       return res.status(400).json({
         status: 'error',
-        message: 'Please provide a title and destination for the trip',
+        message: 'Please provide a title or destination for the trip',
       });
     }
 
+    if (!title) title = destination;
+    if (!destination) destination = title;
+
     const trip = await Trip.create({
       user: req.user._id,
-      title,
-      destination,
-      startDate,
-      endDate,
+      title: title.trim(),
+      destination: destination.trim(),
+      startDate: startDate || new Date(),
+      endDate: endDate || new Date(),
       spotsCount: spotsCount || 0,
-      notes,
+      notes: notes || '',
       budget: budget || 0,
-      hotel,
+      hotel: hotel || '',
       status: status || 'Upcoming',
     });
 
@@ -105,10 +119,22 @@ const updateTrip = async (req, res, next) => {
       return res.status(403).json({ status: 'error', message: 'Not authorized to update this trip' });
     }
 
+    const previousStatus = trip.status;
+
     trip = await Trip.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });
+
+    if (previousStatus === 'Active' && trip.status === 'Completed') {
+      const user = await User.findById(req.user._id);
+      if (user) {
+        user.travelPoints = (user.travelPoints || 0) + 100;
+        user.completedTrips = (user.completedTrips || 0) + 1;
+        user.rank = calculateRank(user.travelPoints);
+        await user.save();
+      }
+    }
 
     res.status(200).json({
       status: 'success',

@@ -79,6 +79,9 @@ postSchema.pre('save', function (next) {
   next();
 });
 
+postSchema.index({ user: 1 });
+postSchema.index({ createdAt: -1 });
+
 const Post = mongoose.model('Post', postSchema);
 
 module.exports = Post;

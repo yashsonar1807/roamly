@@ -38,7 +38,7 @@ const tripSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Upcoming', 'Completed', 'Cancelled'],
+      enum: ['Upcoming', 'Active', 'Completed', 'Cancelled'],
       default: 'Upcoming',
     },
     notes: {
@@ -51,6 +51,9 @@ const tripSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+tripSchema.index({ user: 1 });
+tripSchema.index({ createdAt: -1 });
 
 const Trip = mongoose.model('Trip', tripSchema);
 

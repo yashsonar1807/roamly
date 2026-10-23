@@ -45,13 +45,13 @@ const validateRegister = [
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters'),
   body('phone')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .matches(/^\+?[1-9]\d{1,14}$/)
     .withMessage('Please provide a valid phone number (e.g. +1234567890)'),
-  body('country').optional().trim(),
+  body('country').optional({ checkFalsy: true }).trim(),
   body('bio')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 160 })
     .withMessage('Bio cannot exceed 160 characters'),
@@ -71,21 +71,21 @@ const validateLogin = [
 // Validation rules for profile updates
 const validateUpdateProfile = [
   body('name')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 50 })
     .withMessage('Name cannot exceed 50 characters'),
   body('phone')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .matches(/^\+?[1-9]\d{1,14}$/)
     .withMessage('Please provide a valid phone number'),
   body('bio')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 160 })
     .withMessage('Bio cannot exceed 160 characters'),
-  body('country').optional().trim(),
+  body('country').optional({ checkFalsy: true }).trim(),
   validate,
 ];
 

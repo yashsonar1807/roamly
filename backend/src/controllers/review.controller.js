@@ -15,7 +15,7 @@ const getReviews = async (req, res, next) => {
     const query = { destination: req.params.destinationId };
 
     const total = await Review.countDocuments(query);
-    const reviews = await Review.find(query)
+    const reviews = await Review.find(query).lean()
       .populate('user', 'name username profileImage')
       .sort({ createdAt: -1 })
       .skip(skip)

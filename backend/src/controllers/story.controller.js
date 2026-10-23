@@ -7,7 +7,7 @@ const Story = require('../models/Story');
  */
 const getStories = async (req, res, next) => {
   try {
-    const stories = await Story.find().sort({ createdAt: -1 });
+    const stories = await Story.find().lean().sort({ createdAt: -1 });
     res.status(200).json({
       status: 'success',
       results: stories.length,

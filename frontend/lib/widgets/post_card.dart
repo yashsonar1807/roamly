@@ -6,6 +6,10 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../providers/post_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/user_service.dart';
+import '../config/colors.dart';
+import '../config/routes.dart';
+import '../utils/animations.dart';
 
 class PostCard extends StatelessWidget {
   final Map<String, dynamic> post;
@@ -18,7 +22,7 @@ class PostCard extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => _CommentsSheet(postId: postId),
     );
@@ -27,6 +31,7 @@ class PostCard extends StatelessWidget {
   void _handleShare(BuildContext context) {
     final String caption = post['caption'] ?? 'Check out this post on Roamly!';
     final String url = post['mediaUrl'] ?? '';
+    // ignore: deprecated_member_use
     Share.share('$caption\n$url');
   }
 
@@ -69,44 +74,114 @@ class PostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final postProvider = Provider.of<PostProvider>(context, listen: false);
+    final theme = Theme.of(context);
     
     final bool isLiked = post['isLiked'] ?? false;
     final int likesCount = post['likesCount'] ?? 0;
     final int commentsCount = post['commentsCount'] ?? 0;
-    
-    final bool isOwner = authProvider.user != null && 
-        authProvider.user!['_id'] == post['user'];
+    final currentUserId = authProvider.user?['id'] ?? authProvider.user?['_id'];
+    final postUserId = post['user'] is Map ? post['user']['_id'] : post['user'];
+    final bool isOwner = currentUserId != null && currentUserId.toString() == postUserId?.toString();
 
     final createdAt = post['createdAt'] != null 
         ? DateTime.parse(post['createdAt']) 
         : DateTime.now();
 
     return Container(
-      color: Theme.of(context).cardColor,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: theme.brightness == Brightness.dark ? 0.35 : 0.04,
+            ),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          ListTile(
-            leading: CircleAvatar(
-              backgroundImage: post['authorAvatar'] != null && post['authorAvatar'].toString().isNotEmpty
-                  ? CachedNetworkImageProvider(post['authorAvatar'])
-                  : null,
-              child: post['authorAvatar'] == null || post['authorAvatar'].toString().isEmpty
-                  ? const Icon(Icons.person)
-                  : null,
-            ),
-            title: Text(
-              post['authorName'] ?? 'Anonymous',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              post['location'] ?? '',
-              style: const TextStyle(fontSize: 12),
-            ),
-            trailing: isOwner 
-                ? PopupMenuButton<String>(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      final userId = post['user'];
+                      if (userId != null && userId.toString().isNotEmpty) {
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.publicProfile,
+                          arguments: userId,
+                        );
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundImage: post['authorAvatar'] != null && post['authorAvatar'].toString().isNotEmpty
+                              ? CachedNetworkImageProvider(post['authorAvatar'])
+                              : null,
+                          child: post['authorAvatar'] == null || post['authorAvatar'].toString().isEmpty
+                              ? const Icon(Icons.person, size: 18)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      post['authorName'] ?? 'Anonymous',
+                                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 15),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      gradient: AppColors.rankGradient,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'Traveler',
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (post['location'] != null && post['location'].toString().isNotEmpty)
+                                Text(
+                                  post['location'],
+                                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (isOwner)
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_horiz, color: theme.iconTheme.color),
                     onSelected: (value) {
                       if (value == 'delete') {
                         _handleDelete(context);
@@ -115,52 +190,113 @@ class PostCard extends StatelessWidget {
                     itemBuilder: (context) => [
                       const PopupMenuItem(
                         value: 'delete',
-                        child: Text('Delete Post', style: TextStyle(color: Colors.red)),
+                        child: Text('Delete', style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   )
-                : null,
+                else
+                  Icon(Icons.more_horiz, color: theme.iconTheme.color),
+              ],
+            ),
           ),
           
-          // Media
+          // Media with Glassmorphic Actions (Bento Box Style)
           if (post['mediaUrl'] != null && post['mediaUrl'].toString().isNotEmpty)
             Container(
-              constraints: const BoxConstraints(maxHeight: 500, minHeight: 200),
-              width: double.infinity,
-              color: Colors.grey[200],
-              child: post['mediaType'] == 'video'
-                  ? const Center(child: Icon(Icons.play_circle_outline, size: 64, color: Colors.grey))
-                  : CachedNetworkImage(
-                      imageUrl: post['mediaUrl'],
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                      errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image, size: 64, color: Colors.grey)),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 500, minHeight: 300),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: theme.brightness == Brightness.dark 
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.black.withValues(alpha: 0.05),
+                      ),
                     ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: GestureDetector(
+                        onDoubleTap: () {
+                          if (authProvider.accessToken != null) {
+                            postProvider.toggleLike(authProvider.accessToken!, post['_id']);
+                          }
+                        },
+                        child: post['mediaType'] == 'video'
+                            ? const Center(child: Icon(Icons.play_circle_outline, size: 64, color: Colors.white))
+                            : CachedNetworkImage(
+                                imageUrl: post['mediaUrl'],
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image, size: 64, color: Colors.grey)),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
-          // Actions
+          // Action Bar (Like, Comment, Share, Save)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                IconButton(
-                  icon: Icon(
-                    isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: isLiked ? Colors.red : null,
-                  ),
-                  onPressed: () {
+                BounceScale(
+                  onTap: () {
                     if (authProvider.accessToken != null) {
                       postProvider.toggleLike(authProvider.accessToken!, post['_id']);
                     }
                   },
+                  child: Icon(
+                    isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    color: isLiked ? AppColors.error : theme.iconTheme.color,
+                    size: 28,
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  onPressed: () => _showCommentsBottomSheet(context, post['_id']),
+                const SizedBox(width: 20),
+                BounceScale(
+                  onTap: () => _showCommentsBottomSheet(context, post['_id']),
+                  child: Icon(Icons.chat_bubble_outline_rounded, size: 26, color: theme.iconTheme.color),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send_outlined),
-                  onPressed: () => _handleShare(context),
+                const SizedBox(width: 20),
+                BounceScale(
+                  onTap: () => _handleShare(context),
+                  child: Icon(Icons.send_rounded, size: 26, color: theme.iconTheme.color),
+                ),
+                const Spacer(),
+                BounceScale(
+                  onTap: () async {
+                    if (authProvider.accessToken == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please log in to save posts.')),
+                      );
+                      return;
+                    }
+                    try {
+                      final res = await UserService().toggleSavePost(authProvider.accessToken!, post['_id']);
+                      final isSaved = res['isSaved'] ?? true;
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(isSaved ? 'Post saved to bookmarks!' : 'Post removed from bookmarks.'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error saving post: $e')),
+                        );
+                      }
+                    }
+                  },
+                  child: Icon(Icons.bookmark_border_rounded, size: 28, color: theme.iconTheme.color),
                 ),
               ],
             ),
@@ -169,24 +305,24 @@ class PostCard extends StatelessWidget {
           // Likes Count
           if (likesCount > 0)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Text(
-                '$likesCount ${likesCount == 1 ? 'like' : 'likes'}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                '$likesCount likes',
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
 
           // Caption
           if (post['caption'] != null && post['caption'].toString().isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
               child: RichText(
                 text: TextSpan(
-                  style: DefaultTextStyle.of(context).style,
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14),
                   children: [
                     TextSpan(
                       text: '${post['authorName'] ?? 'Anonymous'} ',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     TextSpan(text: post['caption']),
                   ],
@@ -197,25 +333,25 @@ class PostCard extends StatelessWidget {
           // View all comments
           if (commentsCount > 0)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: GestureDetector(
                 onTap: () => _showCommentsBottomSheet(context, post['_id']),
                 child: Text(
                   'View all $commentsCount comments',
-                  style: const TextStyle(color: Colors.grey),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14),
                 ),
               ),
             ),
 
           // Timestamp
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              timeago.format(createdAt),
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              timeago.format(createdAt).toUpperCase(),
+              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.5),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -269,7 +405,6 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     if (authProvider.accessToken == null) return;
 
     _commentController.clear();
-    // Optimistic UI could be added here
     final newComment = await postProvider.createComment(authProvider.accessToken!, widget.postId, text);
     
     if (newComment != null && mounted) {
@@ -296,7 +431,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final currentUserId = authProvider.user?['_id'];
+    final currentUserId = authProvider.user?['id'] ?? authProvider.user?['_id'];
+    final theme = Theme.of(context);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -305,13 +441,26 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       child: Container(
         height: MediaQuery.of(context).size.height * 0.7,
         padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
         child: Column(
           children: [
-            const Text(
-              'Comments',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: theme.dividerColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            const Divider(),
+            Text(
+              'Comments',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const Divider(height: 32),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -321,8 +470,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                           itemCount: _comments.length,
                           itemBuilder: (context, index) {
                             final comment = _comments[index];
-                            final isOwner = currentUserId != null && comment['user'] != null && 
-                                (comment['user']['_id'] == currentUserId || comment['user'] == currentUserId);
+                            final commentUserId = comment['user'] is Map ? comment['user']['_id'] : comment['user'];
+                            final isOwner = currentUserId != null && commentUserId != null && 
+                                commentUserId.toString() == currentUserId.toString();
                             
                             final authorName = comment['user']?['name'] ?? 'Anonymous';
                             final authorAvatar = comment['user']?['avatar'];
@@ -343,19 +493,22 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                 children: [
                                   Text(
                                     authorName,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     timeago.format(createdAt),
-                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                    style: const TextStyle(color: Colors.grey, fontSize: 11),
                                   ),
                                 ],
                               ),
-                              subtitle: Text(comment['text'] ?? ''),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(comment['text'] ?? '', style: const TextStyle(fontSize: 14)),
+                              ),
                               trailing: isOwner
                                   ? IconButton(
-                                      icon: const Icon(Icons.delete_outline, size: 20),
+                                      icon: const Icon(Icons.delete_outline, size: 18),
                                       onPressed: () => _deleteComment(comment['_id'], index),
                                     )
                                   : null,
@@ -363,25 +516,52 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                           },
                         ),
             ),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _commentController,
-                      decoration: const InputDecoration(
-                        hintText: 'Add a comment...',
-                        border: InputBorder.none,
+            const Divider(height: 1),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundImage: authProvider.user?['profileImage'] != null
+                          ? CachedNetworkImageProvider(authProvider.user!['profileImage'])
+                          : null,
+                      child: authProvider.user?['profileImage'] == null
+                          ? const Icon(Icons.person, size: 18)
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _commentController,
+                        decoration: InputDecoration(
+                          hintText: 'Add a comment...',
+                          hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: theme.cardTheme.color,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: _postComment,
-                    child: const Text('Post'),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    BounceScale(
+                      onTap: _postComment,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.error,
+                        ),
+                        child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../widgets/custom_text_field.dart';
+import 'share_journey_screen.dart';
 
 class TripsView extends StatefulWidget {
   const TripsView({super.key});
@@ -18,10 +19,12 @@ class _TripsViewState extends State<TripsView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      Provider.of<TripProvider>(
-        context,
-        listen: false,
-      ).fetchTrips(auth.accessToken!);
+      if (auth.accessToken != null) {
+        Provider.of<TripProvider>(
+          context,
+          listen: false,
+        ).fetchTrips(auth.accessToken!);
+      }
     });
   }
 
@@ -76,16 +79,44 @@ class _TripsViewState extends State<TripsView> {
     final tripProvider = Provider.of<TripProvider>(context);
     final dateFormat = DateFormat('MMM dd, yyyy');
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Your Travel Logs (MongoDB)',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 860),
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'My Travel Itineraries & Journeys',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.flight_takeoff_rounded, size: 14, color: theme.colorScheme.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${tripProvider.trips.length} Adventures',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
 
@@ -234,6 +265,19 @@ class _TripsViewState extends State<TripsView> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
+                                  if (trip['status'] == 'Completed')
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ShareJourneyScreen(trip: trip),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.share_rounded, size: 18, color: Colors.blue),
+                                      label: const Text('Share Journey', style: TextStyle(color: Colors.blue)),
+                                    ),
                                   TextButton.icon(
                                     onPressed: () => _showEditDialog(context, trip),
                                     icon: const Icon(Icons.edit_rounded, size: 18),
@@ -255,8 +299,9 @@ class _TripsViewState extends State<TripsView> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _EditTripDialog extends StatefulWidget {
@@ -389,7 +434,7 @@ class _EditTripDialogState extends State<_EditTripDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedStatus,
+                        initialValue: _selectedStatus,
                         decoration: const InputDecoration(labelText: 'Status'),
                         items: ['Upcoming', 'Completed', 'Cancelled']
                             .map((e) => DropdownMenuItem(value: e, child: Text(e)))

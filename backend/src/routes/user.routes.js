@@ -7,7 +7,8 @@ const {
   getSavedPosts,
   getUserPosts,
   toggleSaveDestination,
-  getSavedDestinations
+  getSavedDestinations,
+  toggleFollowUser
 } = require('../controllers/user.controller');
 const { protect } = require('../middleware/auth');
 
@@ -24,6 +25,10 @@ router.get('/saved', protect, getSavedPosts);
 
 router.post('/save-destination/:destinationId', protect, toggleSaveDestination);
 router.get('/saved-destinations', protect, getSavedDestinations);
+
+router.post('/:id/follow', protect, toggleFollowUser);
+
+
 
 router.get('/:userId/posts', protect, getUserPosts);
 

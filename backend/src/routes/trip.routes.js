@@ -8,13 +8,19 @@ const {
   deleteTrip
 } = require('../controllers/trip.controller');
 const { protect } = require('../middleware/auth');
+const { upload } = require('../middleware/upload');
 
-router.use(protect); // Secure all routes in this router
+router.use(protect); // All trip routes require authentication
 
-router.get('/', getUserTrips);
-router.post('/', createTrip);
-router.get('/:id', getTripById);
-router.put('/:id', updateTrip);
-router.delete('/:id', deleteTrip);
+router.route('/')
+  .get(getUserTrips)
+  .post(upload.single('coverImage'), createTrip);
+
+router.route('/:id')
+  .get(getTripById)
+  .put(upload.single('coverImage'), updateTrip)
+  .delete(deleteTrip);
+
+
 
 module.exports = router;

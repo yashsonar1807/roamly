@@ -9,7 +9,9 @@ const tripRoutes = require('./routes/trip.routes');
 const storyRoutes = require('./routes/story.routes');
 const postRoutes = require('./routes/post.routes');
 const userRoutes = require('./routes/user.routes');
+const notificationRoutes = require('./routes/notification.routes');
 const reviewRoutes = require('./routes/review.routes');
+const journeyRoutes = require('./routes/journey.routes');
 
 // Load environment variables
 dotenv.config();
@@ -35,7 +37,10 @@ app.use('/api/v1/trips', tripRoutes);
 app.use('/api/v1/stories', storyRoutes);
 app.use('/api/v1/posts', postRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/user', userRoutes); // Alias for singular user endpoints
+app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/journeys', journeyRoutes);
 
 // Default / Health Check Route
 app.get('/', (req, res) => {
@@ -67,7 +72,7 @@ app.use((err, req, res, next) => {
 
 // Server Initialization
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Server] Roamly server is running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
 

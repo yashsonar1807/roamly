@@ -58,6 +58,8 @@ const destinationSchema = new mongoose.Schema(
   }
 );
 
+destinationSchema.index({ name: 'text', city: 'text', country: 'text' });
+
 const Destination = mongoose.model('Destination', destinationSchema);
 
 module.exports = Destination;

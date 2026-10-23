@@ -13,13 +13,14 @@ const searchUsers = async (req, res) => {
 
     const query = {};
     if (q.trim()) {
+      const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
-        { name: { $regex: q, $options: 'i' } },
-        { username: { $regex: q, $options: 'i' } },
+        { name: { $regex: escapedQ, $options: 'i' } },
+        { username: { $regex: escapedQ, $options: 'i' } },
       ];
     }
 
-    const users = await User.find(query)
+    const users = await User.find(query).lean()
       .select('_id name username profileImage bio')
       .limit(parseInt(limit, 10))
       .sort({ name: 1 });
@@ -46,7 +47,7 @@ const getProfile = async (req, res) => {
     if (userId === 'me' || userId === 'profile') {
       userId = req.user._id;
     }
-    const user = await User.findById(userId).select('-password');
+    const user = await User.findById(userId).select('-password').lean();
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -55,7 +56,7 @@ const getProfile = async (req, res) => {
     const tripsCount = await Trip.countDocuments({ user: userId });
 
     const profileData = {
-      ...user.toObject(),
+      ...user,
       followersCount: user.followers.length,
       followingCount: user.following.length,
       postsCount,
@@ -114,7 +115,7 @@ const toggleSavePost = async (req, res) => {
     const user = await User.findById(req.user._id);
     const postId = req.params.postId;
 
-    const isSaved = user.savedPosts.includes(postId);
+    const isSaved = user.savedPosts.some(id => id.toString() === postId.toString());
     if (isSaved) {
       user.savedPosts.pull(postId);
     } else {
@@ -156,7 +157,7 @@ const getSavedPosts = async (req, res) => {
 const getUserPosts = async (req, res) => {
   try {
     const userId = req.params.userId === 'me' ? req.user._id : req.params.userId;
-    const posts = await Post.find({ user: userId })
+    const posts = await Post.find({ user: userId }).lean()
       .populate('user', 'name username profileImage')
       .sort({ createdAt: -1 });
 
@@ -177,7 +178,7 @@ const toggleSaveDestination = async (req, res) => {
     const user = await User.findById(req.user._id);
     const destinationId = req.params.destinationId;
 
-    const isSaved = user.savedDestinations.includes(destinationId);
+    const isSaved = user.savedDestinations.some(id => id.toString() === destinationId.toString());
     if (isSaved) {
       user.savedDestinations.pull(destinationId);
     } else {
@@ -210,6 +211,54 @@ const getSavedDestinations = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Follow or Unfollow a user
+ * @route   POST /api/v1/users/:id/follow
+ * @access  Private
+ */
+const toggleFollowUser = async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const currentUserId = req.user._id;
+
+    if (targetUserId.toString() === currentUserId.toString()) {
+      return res.status(400).json({ success: false, message: 'You cannot follow yourself' });
+    }
+
+    const targetUser = await User.findById(targetUserId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!targetUser || !currentUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isFollowing = currentUser.following.some(id => id.toString() === targetUserId.toString());
+
+    if (isFollowing) {
+      // Unfollow
+      currentUser.following.pull(targetUserId);
+      targetUser.followers.pull(currentUserId);
+    } else {
+      // Follow
+      currentUser.following.push(targetUserId);
+      targetUser.followers.push(currentUserId);
+    }
+
+    await currentUser.save();
+    await targetUser.save();
+
+    res.json({
+      success: true,
+      isFollowing: !isFollowing,
+      followersCount: targetUser.followers.length,
+      followingCount: currentUser.following.length,
+    });
+  } catch (error) {
+    console.error('Error toggling follow user:', error);
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
 module.exports = {
   searchUsers,
   getProfile,
@@ -219,4 +268,5 @@ module.exports = {
   getUserPosts,
   toggleSaveDestination,
   getSavedDestinations,
+  toggleFollowUser,
 };

@@ -18,7 +18,8 @@ const getDestinations = async (req, res, next) => {
 
     // Filter by City
     if (city) {
-      query.city = { $regex: city, $options: 'i' };
+      const escapedCity = city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.city = { $regex: escapedCity, $options: 'i' };
     }
 
     // Filter by Minimum Rating
@@ -31,9 +32,10 @@ const getDestinations = async (req, res, next) => {
 
     // Search by Name or Description
     if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
+        { name: { $regex: escapedSearch, $options: 'i' } },
+        { description: { $regex: escapedSearch, $options: 'i' } },
       ];
     }
 
@@ -43,7 +45,7 @@ const getDestinations = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const total = await Destination.countDocuments(query);
-    const destinations = await Destination.find(query)
+    const destinations = await Destination.find(query).lean()
       .sort({ name: 1 })
       .skip(skip)
       .limit(limit);
@@ -56,6 +58,7 @@ const getDestinations = async (req, res, next) => {
         page,
         limit,
         pages: Math.ceil(total / limit) || 1,
+        totalPages: Math.ceil(total / limit) || 1,
       },
       data: {
         destinations,
